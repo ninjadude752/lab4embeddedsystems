@@ -16,7 +16,7 @@ Pins to configure (on arduino)
 9
 8
 4
-3
+
 2
 
 Pins for RPG
@@ -38,7 +38,7 @@ To initalize stack pointer
 ;assembly code to initialize the LCD display into 4 bit mode.
 /*
 Wait 100ms for power on
-Write D7-4 = 3 hex, with RS=0
+Write D7-4 = 3 hex, with RS=0 = This means that pin 4 should be low
 wait 5ms 
 Write D7-4 = 3 hex, with RS = 0
 Wait 200 us
@@ -59,6 +59,7 @@ Now the display is ready to accept data
 
 
 */
+
 
 .def tmp1 = R23
 .def tmp2 = R24		
