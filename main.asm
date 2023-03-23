@@ -8,6 +8,33 @@
 
 ; Replace with your application code
 
+
+/*
+Pins to configure (on arduino)
+11
+10
+9
+8
+4
+3
+2
+
+Pins for RPG
+Pins for button
+
+
+
+*/
+
+/*
+We need:
+Interrupt
+Interrupt Vector table
+To initalize stack pointer
+
+*/
+
+
 ;assembly code to initialize the LCD display into 4 bit mode.
 /*
 Wait 100ms for power on
@@ -32,6 +59,10 @@ Now the display is ready to accept data
 
 
 */
+
+.def tmp1 = R23
+.def tmp2 = R24		
+.def counter = R20
 
 init:
 
@@ -70,18 +101,20 @@ shiftAB:
 	lsl R22
 	lsl R22
 	Or R22, R16
-	rjmp compare
+	//rjmp compare
 
 ;The waiting loop from lab 3
 wait_loop:
 	rcall delayLoop
 	sbic PINB,0
-	rjmp check_loop
+	//This was where the loop to check the code was run
+	//rjmp check_loop
 	dec R30
 	cpi R30, 0x00
 	brne wait_loop
 	clr R27
-	rjmp reset
+	//This is where we cleared the code 
+	//rjmp reset
 	ret
 
 
@@ -98,4 +131,24 @@ delayLoop:
 	dec R29
 	brne delayLoop
 	ret
+
+; The timer from lab 3
+; Wait for TIMER0 to roll over.
+delay:
+	; Stop timer 0.
+	in tmp1, TCCR0B		; Save configuration
+	ldi tmp2, 0x00		; Stop timer 0
+	out TCCR0B, tmp2
+	; Clear overflow flag.
+	in tmp2, TIFR0		; tmp <-- TIFR0
+	sbr tmp2, 1 << TOV0	; clear TOV0, write logic 1
+	out TIFR0, tmp2
+	; Start timer with new initial count
+	out TCNT0, counter	; Load counter
+	out TCCR0B, tmp1	; Restart timer
+wait:
+	in tmp2, TIFR0		; tmp <-- TIFR0
+	sbrs tmp2, TOV0		; Check overflow flag
+	rjmp wait
+	ret	
 
