@@ -5,33 +5,25 @@
 ; Author : smblackwll
 ;
 
+// set A0-A3 on uC as output from LCD D4-D7
+sbi DDRC, 0		// D4
+sbi DDRC, 1		// D5
+sbi DDRC, 2		// D6
+sbi DDRC, 3		// D7
 
-; Replace with your application code
+sbi DDRD, 2		// RPG A signal	(pin2)
+sbi DDRD, 3		// RPG B signal (pin3)
 
-
-/*
-Pins to configure (on arduino)
-11
-10
-9
-8
-4
-
-2
-
-Pins for RPG
-Pins for button
-
-
-
-*/
+cbi DDRB, 0		// set pin8 on uC as input from PBS
+cbi DDRB, 3		// set pin11 on uC as input from LCD pin 6 E (enable signal)
+cbi DDRB, 5		// set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
+sbi DDRD, 7		// D0
 
 /*
 We need:
 Interrupt
 Interrupt Vector table
 To initalize stack pointer
-
 */
 
 
@@ -59,21 +51,78 @@ Now the display is ready to accept data
 
 
 */
-
-
+ldi R29, 84					; controls the delay time in delayloop
 .def tmp1 = R23
 .def tmp2 = R24		
 .def counter = R20
 
-init:
-
-
-
 
 start:
+	rcall delayLoop
+	rcall clear				; clear display
+	rjmp start
+
+	
+	ldi R21, 8				; length of the string
+	ldi R17, LOW(2*sf80)	; load Z register low
+	ldi R18, High(2*sf80)	; load Z register high
+	rcall displayCString
+
     inc r16
     rjmp start
 
+sf80: .DB "F=80 kHZ"		; create a static string in program memory
+changeMode:
+	// wait 100 ms
+
+	// write D7-4 = 3 hex?
+	cbi PINC, 3
+	cbi PINC, 2
+	sbi PINC, 1
+	sbi PINC, 0
+	// wait 5 ms
+
+	cbi PINC, 3
+	cbi PINC, 2
+	sbi PINC, 1
+	sbi PINC, 0
+	// wait 200 us
+
+	cbi PINC, 3
+	cbi PINC, 2
+	sbi PINC, 1
+	sbi PINC, 0
+	// wait 200 us
+
+	// write D7-4 = 2 hex
+	cbi PINC, 3
+	cbi PINC, 2
+	sbi PINC, 1
+	cbi PINC, 0
+	// wait 5 ms
+
+	// clear display
+	cbi PINC, 3
+	cbi PINC, 2
+	cbi PINC, 1
+	cbi PINC, 0
+	sbi PIND, 7
+
+displayCString:
+L20:
+	lpm
+	swap R0					; upper nibble in place
+	out PORTC, R0			; send upper nibble out
+	rcall LCDStrobe			; latch nibble
+	rcall delay_100u		; wait
+	swap R0					; lower nibble in place
+	out PORTC, R0			; send lower nibble out
+	rcall LCDStrobe			; latch nibble
+	rcall delay_100u		; wait
+	adiw zh:zl, 1			; increment z pointer
+	dec R21					; repeat until
+	brne L20				; all charcters are out
+	ret
 
 
 ; poll2 to read in from the RPG from lab 3
@@ -89,13 +138,11 @@ poll2:
 	rjmp poll2
 
 
-
 ;readRPG2 from lab 3 to read in the shifts
 readRPG2:
-	in R16, PINC
+	in R16, PIND
 	andi r16,0x03
 	ret
-
 
 ;shiftAB from lab 3
 shiftAB:
@@ -117,7 +164,6 @@ wait_loop:
 	//This is where we cleared the code 
 	//rjmp reset
 	ret
-
 
 
 ;The timer from lab 3 - with a 50.091 ms delay/
@@ -153,3 +199,38 @@ wait:
 	rjmp wait
 	ret	
 
+// delay of 100 us
+delay_100u:
+	
+	ret
+
+// latch nibble
+LCDStrobe:
+	sbi PINB, 3
+	cbi PINB, 3
+	ret
+
+// Clear display
+clear:
+	cbi PINC, 0
+	cbi PINC, 1
+	cbi PINC, 2
+	cbi PINC, 3
+	cbi PIND, 7
+	sbi PIND, 7
+	ret
+
+// Timer 0 Overflow interrupt ISR
+/*
+tim0_ovf:
+	push R25
+	in R25, SREG
+	push R25
+	sbi PINC, 5		; Toggle PORTC, 5  <== LED
+	ldi R25, 201	; Reload counter
+	out TCNT0, R25
+	pop R25
+	out SREG, R25
+	pop R25
+	reti
+*/
