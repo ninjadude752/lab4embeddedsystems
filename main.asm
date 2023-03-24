@@ -17,7 +17,6 @@ sbi DDRD, 3		// RPG B signal (pin3)
 cbi DDRB, 0		// set pin8 on uC as input from PBS
 cbi DDRB, 3		// set pin11 on uC as input from LCD pin 6 E (enable signal)
 cbi DDRB, 5		// set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
-cbi DDRD, 7		// D0
 
 /*
 We need:
@@ -59,7 +58,7 @@ ldi R29, 84					; controls the delay time in delayloop
 
 start:
 	rcall changeMode
-
+	rjmp start
 	ldi R21, 8				; length of the string
 	ldi R17, LOW(2*sf80)	; load Z register low
 	ldi R18, High(2*sf80)	; load Z register high
@@ -72,32 +71,45 @@ sf80: .DB "F=80 kHZ"		; create a static string in program memory
 changeMode:
 	// wait 100 ms
 	rcall delayLoop
+	rcall delayLoop
+	rcall LCDStrobe
 	// write D7-4 = 3 hex?
-	cbi PINC, 3
-	cbi PINC, 2
-	sbi PINC, 1
-	sbi PINC, 0
+	cbi PORTC, 3
+	cbi PORTC, 2
+	sbi PORTC, 1
+	sbi PORTC, 0
 	// wait 5 ms
 	rcall delayLoop
-	cbi PINC, 3
-	cbi PINC, 2
-	sbi PINC, 1
-	sbi PINC, 0
+	rcall LCDStrobe
+	cbi PORTC, 3
+	cbi PORTC, 2
+	sbi PORTC, 1
 	// wait 200 us
 	rcall delayLoop
-	cbi PINC, 3
-	cbi PINC, 2
-	sbi PINC, 1
-	sbi PINC, 0
+	rcall LCDStrobe
+	cbi PORTC, 3
+	cbi PORTC, 2
+	sbi PORTC, 1
+	sbi PORTC, 0
 	// wait 200 us
 	rcall delayLoop
+	rcall LCDStrobe
 	// write D7-4 = 2 hex
-	cbi PINC, 3
-	cbi PINC, 2
-	sbi PINC, 1
-	cbi PINC, 0
+	cbi PORTC, 3
+	cbi PORTC, 2
+	sbi PORTC, 1
+	cbi PORTC, 0
 	// wait 5 ms
 	rcall delayLoop
+	rcall LCDStrobe
+	
+	sbi PORTC, 3
+	sbi PORTC, 2
+	sbi PORTC, 1
+	sbi PORTC, 0
+	rcall delayLoop
+	rcall LCDStrobe	
+
 	ret
 
 displayCString:
@@ -198,11 +210,20 @@ delay_100u:
 
 // latch nibble
 LCDStrobe:
-	sbi PINB, 3
+	sbi PORTB, 3
 	rcall delayLoop
-	cbi PINB, 3
+	cbi PORTB, 3
 	ret
 
+// Clear display
+clear:
+	cbi PINC, 0
+	cbi PINC, 1
+	cbi PINC, 2
+	cbi PINC, 3
+	cbi PIND, 7
+	sbi PIND, 7
+	ret
 
 // Timer 0 Overflow interrupt ISR
 /*
