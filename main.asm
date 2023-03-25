@@ -103,13 +103,86 @@ changeMode:
 	// wait 5 ms
 	rcall delayLoop
 	
-	// display on, cursor on, blink on, maybe 2 lines
+	// 2 lines
+	cbi PORTC, 3
+	cbi PORTC, 2
+	sbi PORTC, 1
+	cbi PORTC, 0
+	rcall enable
+	rcall delayLoop 
+
 	sbi PORTC, 3
+	cbi PORTC, 2
+	cbi PORTC, 1
+	cbi PORTC, 0
+	rcall enable
+	rcall delayLoop
+
+	// enable display/cursor
+	rcall clear
+	rcall enable
+	rcall delayLoop
+
+	sbi PORTC, 3
+	cbi PORTC, 2
+	cbi PORTC, 1
+	cbi PORTC, 0
+	rcall enable
+	rcall delayLoop
+
+	// clear and home display
+	rcall clear
+	rcall enable
+	rcall delayLoop
+
+	cbi PORTC, 3
+	cbi PORTC, 2
+	cbi PORTC, 1
+	sbi PORTC, 0
+	rcall enable
+	rcall delayLoop
+
+	// move cursor right 06 hex
+	rcall clear
+	rcall enable
+	rcall delayLoop
+
+	cbi PORTC, 3
+	sbi PORTC, 2
+	sbi PORTC, 1
+	cbi PORTC, 0
+	rcall enable
+	rcall delayLoop
+
+	// turn on display 0C hex
+	rcall clear
+	rcall enable
+	rcall delayLoop
+
+	sbi PORTC, 3
+	sbi PORTC, 2
+	cbi PORTC, 1
+	cbi PORTC, 0
+	rcall enable
+	rcall delayLoop
+
+	/*
+	cbi PORTC, 3
+	cbi PORTC, 2
+	cbi PORTC, 1
+	cbi PORTC, 0
+	rcall enable
+	rcall delayLoop
+	*/
+
+	// display on, cursor on, blink on, maybe 2 lines
+	/*sbi PORTC, 3
 	sbi PORTC, 2
 	sbi PORTC, 1
 	sbi PORTC, 0
 	rcall delayLoop
-	rcall enable	
+	rcall enable
+	*/	
 	ret
 
 displayCString:
@@ -225,8 +298,6 @@ clear:
 	cbi PINC, 1
 	cbi PINC, 2
 	cbi PINC, 3
-	cbi PIND, 7
-	sbi PIND, 7
 	ret
 
 // Timer 0 Overflow interrupt ISR
