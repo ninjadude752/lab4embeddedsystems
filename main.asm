@@ -15,8 +15,8 @@ sbi DDRC, 3		// D7
 ;sbi DDRD, 3		// RPG B signal (pin3)
 
 ;cbi DDRB, 0		// set pin8 on uC as input from PBS
-cbi DDRB, 3		// set pin11 on uC as input from LCD pin 6 E (enable signal)
-cbi DDRB, 5		// set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
+sbi DDRB, 3		// set pin11 on uC as input from LCD pin 6 E (enable signal)
+sbi DDRB, 5		// set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
 
 /*
 We need:
@@ -50,26 +50,32 @@ Now the display is ready to accept data
 
 
 */
-ldi R29, 84					; controls the delay time in delayloop
+ldi R29, 50					; controls the delay time in delayloop
 .def tmp1 = R23
 .def tmp2 = R24		
 .def counter = R20
+clr R25						; register to store nibble
 
 
 start:
 	rcall changeMode
-	rjmp start
+	rcall displayE
+	/*
 	ldi R21, 8				; length of the string
 	ldi R17, LOW(2*sf80)	; load Z register low
 	ldi R18, High(2*sf80)	; load Z register high
 	rcall displayCString
+	*/
 
     //inc r16
     rjmp start
 
 sf80: .DB "F=80 kHZ"		; create a static string in program memory
 changeMode:
+	cbi PORTB, 3
+	cbi PORTB, 5
 	// wait 100 ms
+	rcall delayLoop
 	rcall delayLoop
 	rcall delayLoop
 	// write D7-4 = 3 hex?
@@ -85,7 +91,6 @@ changeMode:
 	rcall delayLoop
 	ldi R25, 0x03
 	out PORTC, R25
-	
 	rcall enable
 	// wait 200 us
 	rcall delayLoop
@@ -106,7 +111,7 @@ changeMode:
 	rcall enable
 	rcall delayLoop
 
-	// enable display/cursor
+	// enable display/cursor 08 hex
 	rcall clear
 	rcall enable
 	rcall delayLoop
@@ -115,7 +120,7 @@ changeMode:
 	rcall enable
 	rcall delayLoop
 
-	// clear and home display
+	// clear and home display 01 hex
 	rcall clear
 	rcall enable
 	rcall delayLoop
@@ -137,7 +142,7 @@ changeMode:
 	rcall clear
 	rcall enable
 	rcall delayLoop
-	ldi R25, 0x0c
+	ldi R25, 0x0C
 	out PORTC, R25
 	rcall enable
 	rcall delayLoop
@@ -153,6 +158,7 @@ displayE:
 	out PORTC, R25
 	rcall enable
 	rcall delayLoop
+	ret
 
 displayCString:
 L20:
@@ -213,6 +219,26 @@ wait_loop:
 	ret
 
 
+// delay of 100 us
+delay_100u:
+	
+	ret
+
+// enable and disable the enable signal
+enable:
+	sbi PORTB, 3
+	rcall delayLoop
+	cbi PORTB, 3
+	rcall delayLoop
+	ret
+
+
+// Clear display
+clear:
+	ldi R25, 0x00
+	out PORTC, R25
+	ret
+
 ;The timer from lab 3 - with a 50.091 ms delay/
 ;It is going to have to be reconfigured for this lab
 // run this once to get 50.091 ms delay
@@ -245,26 +271,6 @@ wait:
 	sbrs tmp2, TOV0		; Check overflow flag
 	rjmp wait
 	ret	
-
-// delay of 100 us
-delay_100u:
-	
-	ret
-
-// enable and disable the enable signal
-enable:
-	sbi PINB, 3
-	rcall delayLoop
-	cbi PINB, 3
-	ret
-
-
-// Clear display
-clear:
-	ldi R25, 0x00
-	out PORTC, R25
-	ret
-
 // Timer 0 Overflow interrupt ISR
 /*
 tim0_ovf:
