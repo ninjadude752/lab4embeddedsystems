@@ -73,48 +73,36 @@ changeMode:
 	rcall delayLoop
 	rcall delayLoop
 	// write D7-4 = 3 hex?
-	cbi PORTC, 3
-	cbi PORTC, 2
-	sbi PORTC, 1
-	sbi PORTC, 0
+	ldi R25, 0x03
+	out PORTC, R25
 	rcall enable
 	// wait 5 ms
 	rcall delayLoop
-	cbi PORTC, 3
-	cbi PORTC, 2
-	sbi PORTC, 1
-	sbi PORTC, 0
+	ldi R25, 0x03
+	out PORTC, R25
 	rcall enable
 	// wait 200 us
 	rcall delayLoop
-	cbi PORTC, 3
-	cbi PORTC, 2
-	sbi PORTC, 1
-	sbi PORTC, 0
+	ldi R25, 0x03
+	out PORTC, R25
+	
 	rcall enable
 	// wait 200 us
 	rcall delayLoop
 	// write D7-4 = 2 hex
-	cbi PORTC, 3
-	cbi PORTC, 2
-	sbi PORTC, 1
-	cbi PORTC, 0
+	ldi R25, 0x02
+	out PORTC, R25
 	rcall enable
 	// wait 5 ms
 	rcall delayLoop
 	
 	// 2 lines
-	cbi PORTC, 3
-	cbi PORTC, 2
-	sbi PORTC, 1
-	cbi PORTC, 0
+	ldi R25, 0x02
+	out PORTC, R25
 	rcall enable
 	rcall delayLoop 
-
-	sbi PORTC, 3
-	cbi PORTC, 2
-	cbi PORTC, 1
-	cbi PORTC, 0
+	ldi R25, 0x08
+	out PORTC, R25
 	rcall enable
 	rcall delayLoop
 
@@ -122,11 +110,8 @@ changeMode:
 	rcall clear
 	rcall enable
 	rcall delayLoop
-
-	sbi PORTC, 3
-	cbi PORTC, 2
-	cbi PORTC, 1
-	cbi PORTC, 0
+	ldi R25, 0x08
+	out PORTC, R25
 	rcall enable
 	rcall delayLoop
 
@@ -134,11 +119,8 @@ changeMode:
 	rcall clear
 	rcall enable
 	rcall delayLoop
-
-	cbi PORTC, 3
-	cbi PORTC, 2
-	cbi PORTC, 1
-	sbi PORTC, 0
+	ldi R25, 0x01
+	out PORTC, R25
 	rcall enable
 	rcall delayLoop
 
@@ -146,56 +128,44 @@ changeMode:
 	rcall clear
 	rcall enable
 	rcall delayLoop
-
-	cbi PORTC, 3
-	sbi PORTC, 2
-	sbi PORTC, 1
-	cbi PORTC, 0
+	ldi R25, 0x06
+	out PORTC, R25
 	rcall enable
 	rcall delayLoop
-
+	
 	// turn on display 0C hex
 	rcall clear
 	rcall enable
 	rcall delayLoop
-
-	sbi PORTC, 3
-	sbi PORTC, 2
-	cbi PORTC, 1
-	cbi PORTC, 0
+	ldi R25, 0x0c
+	out PORTC, R25
 	rcall enable
 	rcall delayLoop
-
-	/*
-	cbi PORTC, 3
-	cbi PORTC, 2
-	cbi PORTC, 1
-	cbi PORTC, 0
-	rcall enable
-	rcall delayLoop
-	*/
-
-	// display on, cursor on, blink on, maybe 2 lines
-	/*sbi PORTC, 3
-	sbi PORTC, 2
-	sbi PORTC, 1
-	sbi PORTC, 0
-	rcall delayLoop
-	rcall enable
-	*/	
 	ret
+
+displayE:
+	sbi PORTB, 5
+	ldi R25, 0x04
+	out PORTC, R25
+	rcall enable
+	rcall delayLoop
+	ldi R25, 0x05
+	out PORTC, R25
+	rcall enable
+	rcall delayLoop
 
 displayCString:
 L20:
+	sbi PINB, 5
 	lpm
 	swap R0					; upper nibble in place
 	out PORTC, R0			; send upper nibble out
-	rcall LCDStrobe			; latch nibble
-	rcall delayLoop		; wait
+	rcall enable			; latch nibble
+	rcall delayLoop			; wait
 	swap R0					; lower nibble in place
 	out PORTC, R0			; send lower nibble out
-	rcall LCDStrobe			; latch nibble
-	rcall delayLoop		; wait
+	rcall enable			; latch nibble
+	rcall delayLoop			; wait
 	adiw zh:zl, 1			; increment z pointer
 	dec R21					; repeat until
 	brne L20				; all charcters are out
@@ -283,21 +253,16 @@ delay_100u:
 
 // enable and disable the enable signal
 enable:
-	sbi PORTB, 3
+	sbi PINB, 3
 	rcall delayLoop
-	cbi PORTB, 3
+	cbi PINB, 3
 	ret
 
-LCDStrobe:
-
-	ret
 
 // Clear display
 clear:
-	cbi PINC, 0
-	cbi PINC, 1
-	cbi PINC, 2
-	cbi PINC, 3
+	ldi R25, 0x00
+	out PORTC, R25
 	ret
 
 // Timer 0 Overflow interrupt ISR
