@@ -4,73 +4,63 @@
 ; Created: 3/23/2023 3:15:04 PM
 ; Author : smblackwll
 ;
+.cseg
+.org 0x0000
+	rjmp start
 
-// set A0-A3 on uC as output from LCD D4-D7
-sbi DDRC, 0		// D4
-sbi DDRC, 1		// D5
-sbi DDRC, 2		// D6
-sbi DDRC, 3		// D7
+sf80: .DB "F=80 kHZ",0		; create a static string in program memory
+	rcall displayCString
 
-;sbi DDRD, 2		// RPG A signal	(pin2)
-;sbi DDRD, 3		// RPG B signal (pin3)
-
-;cbi DDRB, 0		// set pin8 on uC as input from PBS
-sbi DDRB, 3		// set pin11 on uC as input from LCD pin 6 E (enable signal)
-sbi DDRB, 5		// set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
-
-/*
-We need:
-Interrupt
-Interrupt Vector table
-To initalize stack pointer
-*/
-
-
-;assembly code to initialize the LCD display into 4 bit mode.
-/*
-Wait 100ms for power on
-Write D7-4 = 3 hex, with RS=0 = This means that pin 4 should be low
-wait 5ms 
-Write D7-4 = 3 hex, with RS = 0
-Wait 200 us
-Write D7-4 = 3 hex, with RS = 0, for a 3rd time 
-Wait 200 us 
-Write D7-4 =2 to enable four bit mode
-Wait 5ms
-
-Now the screen is in 4 bit mode
-
-Now:
-Write Command:	"Set Interface"
-Write Command: "Enable Display/Cursor"
-Write Command: "Clear and Home"
-Write Command: "Set cursor move direction"
-Turn on display
-Now the display is ready to accept data
-
-
-*/
-ldi R29, 50					; controls the delay time in delayloop
-.def tmp1 = R23
-.def tmp2 = R24		
-.def counter = R20
-clr R25						; register to store nibble
 
 
 start:
-	rcall changeMode
-	rcall displayE
+	;rcall displayE
 	/*
 	ldi R21, 8				; length of the string
 	ldi R17, LOW(2*sf80)	; load Z register low
-	ldi R18, High(2*sf80)	; load Z register high
-	rcall displayCString
+	ldi R18, HIGH(2*sf80)	; load Z register high
 	*/
 
-    //inc r16
-    rjmp start
+			// set A0-A3 on uC as output from LCD D4-D7
+	sbi DDRC, 0		// D4
+	sbi DDRC, 1		// D5
+	sbi DDRC, 2		// D6
+	sbi DDRC, 3		// D7
 
-sf80: .DB "F=80 kHZ"		; create a static string in program memory
+	;sbi DDRD, 2		// RPG A signal	(pin2)
+	;sbi DDRD, 3		// RPG B signal (pin3)
+
+	;cbi DDRB, 0		// set pin8 on uC as input from PBS
+	sbi DDRB, 3		// set pin11 on uC as input from LCD pin 6 E (enable signal)
+	sbi DDRB, 5		// set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
+
+	/*
+	We need:
+	Interrupt
+	Interrupt Vector table
+	To initalize stack pointer
+	*/
+
+
+	ldi R29, 50					; controls the delay time in delayloop
+	.equ asciiF = 0x46
+	.equ asciiequ = 0x3d
+	.equ ascii8 = 0x38
+	.equ ascii0 = 0x30
+	.equ asciik = 0x6b
+	.equ asciiH = 0x48
+	.equ asciiz = 0x7a
+	.def tmp1 = R23
+	.def tmp2 = R24		
+	.def counter = R20
+	clr R25						; register to store nibble
+
+	rcall changeMode
+	rcall displayCString
+	rcall clearDisplay
+    //inc r16
+	rjmp end
+
 changeMode:
 	cbi PORTB, 3
 	cbi PORTB, 5
@@ -112,7 +102,8 @@ changeMode:
 	rcall delayLoop
 
 	// enable display/cursor 08 hex
-	rcall clear
+	ldi R25, 0x00
+	out PORTC, R25
 	rcall enable
 	rcall delayLoop
 	ldi R25, 0x08
@@ -121,7 +112,8 @@ changeMode:
 	rcall delayLoop
 
 	// clear and home display 01 hex
-	rcall clear
+	ldi R25, 0x00
+	out PORTC, R25
 	rcall enable
 	rcall delayLoop
 	ldi R25, 0x01
@@ -130,7 +122,8 @@ changeMode:
 	rcall delayLoop
 
 	// move cursor right 06 hex
-	rcall clear
+	ldi R25, 0x00
+	out PORTC, R25
 	rcall enable
 	rcall delayLoop
 	ldi R25, 0x06
@@ -139,7 +132,8 @@ changeMode:
 	rcall delayLoop
 	
 	// turn on display 0C hex
-	rcall clear
+	ldi R25, 0x00
+	out PORTC, R25
 	rcall enable
 	rcall delayLoop
 	ldi R25, 0x0C
@@ -158,11 +152,33 @@ displayE:
 	out PORTC, R25
 	rcall enable
 	rcall delayLoop
+	cbi PORTB, 5
 	ret
 
+	/*
+freqAscii:
+	; F
+	ldi R25, HIGH(asciiF)
+	rcall displayFreq
+	ldi R25, LOW(asciiF)
+	
+
+displayFreq:
+	sbi PORTB, 5
+	out PORTC, R25
+	rcall enable
+	rcall delayLoop
+	ret
+
+	*/
+	
+
 displayCString:
+	ldi R21, 8				; length of the string
+	ldi R17, LOW(2*sf80)	; load Z register low
+	ldi R18, HIGH(2*sf80)	; load Z register high
 L20:
-	sbi PINB, 5
+	sbi PORTB, 5
 	lpm
 	swap R0					; upper nibble in place
 	out PORTC, R0			; send upper nibble out
@@ -219,6 +235,19 @@ wait_loop:
 	ret
 
 
+clearDisplay:
+	// clear and home display 01 hex
+	cbi PORTB, 5
+	ldi R25, 0x00
+	out PORTC, R25
+	rcall enable
+	rcall delayLoop
+	ldi R25, 0x01
+	out PORTC, R25
+	rcall enable
+	rcall delayLoop
+	ret
+
 // delay of 100 us
 delay_100u:
 	
@@ -232,12 +261,6 @@ enable:
 	rcall delayLoop
 	ret
 
-
-// Clear display
-clear:
-	ldi R25, 0x00
-	out PORTC, R25
-	ret
 
 ;The timer from lab 3 - with a 50.091 ms delay/
 ;It is going to have to be reconfigured for this lab
@@ -285,3 +308,5 @@ tim0_ovf:
 	pop R25
 	reti
 */
+end:
+	rjmp end
