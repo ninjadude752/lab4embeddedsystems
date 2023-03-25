@@ -5,16 +5,15 @@
 ; Author : smblackwll
 ;
 .cseg
-.org 0x0000
-	rjmp start
+	.org 0x0000
+		rjmp start
 
 sf80: .DB "F=80 kHZ",0		; create a static string in program memory
-	rcall displayCString
+	;rcall displayCString
 
 
 
 start:
-	;rcall displayE
 	/*
 	ldi R21, 8				; length of the string
 	ldi R17, LOW(2*sf80)	; load Z register low
@@ -56,8 +55,9 @@ start:
 	clr R25						; register to store nibble
 
 	rcall changeMode
+	sbi PORTB, 5
 	rcall displayCString
-	rcall clearDisplay
+	;rcall clearDisplay
     //inc r16
 	rjmp end
 
@@ -142,6 +142,7 @@ changeMode:
 	rcall delayLoop
 	ret
 
+/*
 displayE:
 	sbi PORTB, 5
 	ldi R25, 0x04
@@ -154,6 +155,7 @@ displayE:
 	rcall delayLoop
 	cbi PORTB, 5
 	ret
+*/
 
 	/*
 freqAscii:
@@ -175,10 +177,10 @@ displayFreq:
 
 displayCString:
 	ldi R21, 8				; length of the string
-	ldi R17, LOW(2*sf80)	; load Z register low
-	ldi R18, HIGH(2*sf80)	; load Z register high
+	ldi R30, LOW(2*sf80)	; load Z register low
+	ldi R31, HIGH(2*sf80)	; load Z register high
 L20:
-	sbi PORTB, 5
+	
 	lpm
 	swap R0					; upper nibble in place
 	out PORTC, R0			; send upper nibble out
@@ -201,7 +203,7 @@ poll2:
 	andi R19, 0x3
 	cp R16, R19 
 	brne shiftAB
-	ldi R30, 12
+	ldi R28, 12
 	sbis PINB, 0
 	rcall wait_loop
 	rjmp poll2
@@ -227,7 +229,7 @@ wait_loop:
 	//This was where the loop to check the code was run
 	//rjmp check_loop
 	dec R30
-	cpi R30, 0x00
+	cpi R26, 0x00
 	brne wait_loop
 	clr R27
 	//This is where we cleared the code 
@@ -308,5 +310,7 @@ tim0_ovf:
 	pop R25
 	reti
 */
+
+// end of the file
 end:
 	rjmp end
