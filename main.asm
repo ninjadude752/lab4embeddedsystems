@@ -11,10 +11,10 @@ sbi DDRC, 1		// D5
 sbi DDRC, 2		// D6
 sbi DDRC, 3		// D7
 
-sbi DDRD, 2		// RPG A signal	(pin2)
-sbi DDRD, 3		// RPG B signal (pin3)
+;sbi DDRD, 2		// RPG A signal	(pin2)
+;sbi DDRD, 3		// RPG B signal (pin3)
 
-cbi DDRB, 0		// set pin8 on uC as input from PBS
+;cbi DDRB, 0		// set pin8 on uC as input from PBS
 cbi DDRB, 3		// set pin11 on uC as input from LCD pin 6 E (enable signal)
 cbi DDRB, 5		// set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
 
@@ -72,44 +72,44 @@ changeMode:
 	// wait 100 ms
 	rcall delayLoop
 	rcall delayLoop
-	rcall LCDStrobe
 	// write D7-4 = 3 hex?
 	cbi PORTC, 3
 	cbi PORTC, 2
 	sbi PORTC, 1
 	sbi PORTC, 0
+	rcall enable
 	// wait 5 ms
 	rcall delayLoop
-	rcall LCDStrobe
-	cbi PORTC, 3
-	cbi PORTC, 2
-	sbi PORTC, 1
-	// wait 200 us
-	rcall delayLoop
-	rcall LCDStrobe
 	cbi PORTC, 3
 	cbi PORTC, 2
 	sbi PORTC, 1
 	sbi PORTC, 0
+	rcall enable
 	// wait 200 us
 	rcall delayLoop
-	rcall LCDStrobe
+	cbi PORTC, 3
+	cbi PORTC, 2
+	sbi PORTC, 1
+	sbi PORTC, 0
+	rcall enable
+	// wait 200 us
+	rcall delayLoop
 	// write D7-4 = 2 hex
 	cbi PORTC, 3
 	cbi PORTC, 2
 	sbi PORTC, 1
 	cbi PORTC, 0
+	rcall enable
 	// wait 5 ms
 	rcall delayLoop
-	rcall LCDStrobe
 	
+	// display on, cursor on, blink on, maybe 2 lines
 	sbi PORTC, 3
 	sbi PORTC, 2
 	sbi PORTC, 1
 	sbi PORTC, 0
 	rcall delayLoop
-	rcall LCDStrobe	
-
+	rcall enable	
 	ret
 
 displayCString:
@@ -208,11 +208,15 @@ delay_100u:
 	
 	ret
 
-// latch nibble
-LCDStrobe:
+// enable and disable the enable signal
+enable:
 	sbi PORTB, 3
 	rcall delayLoop
 	cbi PORTB, 3
+	ret
+
+LCDStrobe:
+
 	ret
 
 // Clear display
