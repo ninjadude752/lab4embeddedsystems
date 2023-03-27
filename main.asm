@@ -16,11 +16,7 @@ buttonOff: .DB "Fan: Off", 0 //length 8
 
 
 start:
-	/*
-	ldi R21, 8				; length of the string
-	ldi R17, LOW(2*sf80)	; load Z register low
-	ldi R18, HIGH(2*sf80)	; load Z register high
-	*/
+	
 
 			// set A0-A3 on uC as output from LCD D4-D7
 	sbi DDRC, 0		// D4
@@ -58,6 +54,7 @@ start:
 	.def tmp2 = R24		
 	.def counter = R20
 	clr R25						; register to store nibble
+	ldi R17, 0x01 ;set fan bit to on
 
 	rcall changeMode
 	sbi PORTB, 5
@@ -69,6 +66,14 @@ start:
 	;rcall clearDisplay
     //inc r16
 	rjmp end
+
+displayLoop:
+	sbi PORTB, 5
+	rcall displayCString
+	//need a function to move the cursor over 9 spaces to get to the next line
+	rcall nextLine
+	sbi PORTB, 5
+	rcall displayFanOn
 
 changeMode:
 	cbi PORTB, 3
@@ -190,9 +195,16 @@ displayCString:
 	ldi R31, HIGH(2*sf80)	; load Z register high
 	rjmp L20
 displayFanOn:
+	clr R17
 	ldi R21, 7
 	ldi R30, LOW(2*buttonOn)
 	ldi R31, HIGH(2*buttonOn)
+	rjmp L20
+displayFanOff:
+	ldi R17, 0x01
+	ldi R21, 8
+	ldi R30, LOW(2*buttonOff)
+	ldi R31, HIGH(2*buttonOff)
 	rjmp L20
 L20:
 	lpm
@@ -221,6 +233,13 @@ poll2:
 	sbis PINB, 0
 	rcall wait_loop
 	rjmp poll2
+
+togglePower:
+	cpi R17, 0x00
+	breq displayFanOn
+	cpi R17, 0x01
+	breq displayFanOff
+	ret
 
 
 ;readRPG2 from lab 3 to read in the shifts
@@ -337,6 +356,13 @@ tim0_ovf:
 	reti
 */
 
+
+
+
 // end of the file
 end:
+	rcall nextLine
+	sbi PORTB,5
+	SBIS PINC,5
+	rcall togglePower
 	rjmp end
