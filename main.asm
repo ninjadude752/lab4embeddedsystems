@@ -279,7 +279,7 @@ nextLine:
 delayLoop:
 	ldi R23, 0x01		// tmp1
 	ldi R24, 0x03		// prescaler, 64 
-	ldi R20, 107		// counter
+	ldi R20, 230		// counter
 	out TCCR0B, R24
 	rcall delay
 	dec R29
@@ -322,9 +322,11 @@ tim0_ovf:
 
 
 PWMLoop:
-	ldi R18, 0x01		// tmp1
+	ldi R18, 0x23		// value to set fast pwm mode
 	ldi R26, 0x03		// prescaler, 64 
-	ldi R27, 107		// counter
+	ldi R27, 255		// counter
+	ldi R28, 49
+	sts OCR2B, R28
 	sts TCCR2B, R26
 	rcall delayPWM
 	dec R28
