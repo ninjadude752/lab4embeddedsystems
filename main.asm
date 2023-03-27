@@ -9,6 +9,8 @@
 		rjmp start
 
 sf80: .DB "F=80 kHZ",0		; create a static string in program memory
+buttonOn: .DB "Fan: On", 0 //length 7
+buttonOff: .DB "Fan: Off", 0 //length 8
 	;rcall displayCString
 
 
@@ -25,6 +27,9 @@ start:
 	sbi DDRC, 1		// D5
 	sbi DDRC, 2		// D6
 	sbi DDRC, 3		// D7
+
+	//set pushbutton as input
+	sbi DDRC, 4
 
 	;sbi DDRD, 2		// RPG A signal	(pin2)
 	;sbi DDRD, 3		// RPG B signal (pin3)
@@ -57,6 +62,10 @@ start:
 	rcall changeMode
 	sbi PORTB, 5
 	rcall displayCString
+	//need a function to move the cursor over 9 spaces to get to the next line
+	rcall nextLine
+	sbi PORTB, 5
+	rcall displayFanOn
 	;rcall clearDisplay
     //inc r16
 	rjmp end
@@ -179,8 +188,13 @@ displayCString:
 	ldi R21, 8				; length of the string
 	ldi R30, LOW(2*sf80)	; load Z register low
 	ldi R31, HIGH(2*sf80)	; load Z register high
+	rjmp L20
+displayFanOn:
+	ldi R21, 7
+	ldi R30, LOW(2*buttonOn)
+	ldi R31, HIGH(2*buttonOn)
+	rjmp L20
 L20:
-	
 	lpm
 	swap R0					; upper nibble in place
 	out PORTC, R0			; send upper nibble out
@@ -263,6 +277,18 @@ enable:
 	rcall delayLoop
 	ret
 
+nextLine:
+	cbi PORTB, 5
+	rcall delayLoop
+	ldi R25, 0x0C
+	out PORTC, R25
+	rcall enable
+	rcall delayLoop
+	ldi R25, 0x00
+	out PORTC, R25
+	rcall enable
+	rcall delayLoop
+	ret
 
 ;The timer from lab 3 - with a 50.091 ms delay/
 ;It is going to have to be reconfigured for this lab
