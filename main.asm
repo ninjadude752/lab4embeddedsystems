@@ -26,6 +26,7 @@ start:
 
 	//set pushbutton as input
 	sbi DDRC, 4
+	sbi DDRD, 3
 
 	;sbi DDRD, 2		// RPG A signal	(pin2)
 	;sbi DDRD, 3		// RPG B signal (pin3)
@@ -41,16 +42,11 @@ start:
 	To initalize stack pointer
 	*/
 
+	
 
 	ldi R29, 50					; controls the delay time in delayloop
-	.equ asciiF = 0x46
-	.equ asciiequ = 0x3d
-	.equ ascii8 = 0x38
-	.equ ascii0 = 0x30
-	.equ asciik = 0x6b
-	.equ asciiH = 0x48
-	.equ asciiz = 0x7a
-	.def tmp1 = R23
+	ldi R28, 50
+	.def tmp1 = R13
 	.def tmp2 = R24		
 	.def counter = R20
 	clr R25						; register to store nibble
@@ -65,6 +61,7 @@ start:
 	rcall displayFanOn
 	;rcall clearDisplay
     //inc r16
+	;rcall PWMLoop
 	rjmp end
 
 displayLoop:
@@ -155,38 +152,6 @@ changeMode:
 	rcall enable
 	rcall delayLoop
 	ret
-
-/*
-displayE:
-	sbi PORTB, 5
-	ldi R25, 0x04
-	out PORTC, R25
-	rcall enable
-	rcall delayLoop
-	ldi R25, 0x05
-	out PORTC, R25
-	rcall enable
-	rcall delayLoop
-	cbi PORTB, 5
-	ret
-*/
-
-	/*
-freqAscii:
-	; F
-	ldi R25, HIGH(asciiF)
-	rcall displayFreq
-	ldi R25, LOW(asciiF)
-	
-
-displayFreq:
-	sbi PORTB, 5
-	out PORTC, R25
-	rcall enable
-	rcall delayLoop
-	ret
-
-	*/
 	
 
 displayCString:
@@ -229,7 +194,6 @@ poll2:
 	andi R19, 0x3
 	cp R16, R19 
 	brne shiftAB
-	ldi R28, 12
 	sbis PINB, 0
 	rcall wait_loop
 	rjmp poll2
@@ -356,6 +320,37 @@ tim0_ovf:
 	reti
 */
 
+
+PWMLoop:
+	ldi R18, 0x01		// tmp1
+	ldi R26, 0x03		// prescaler, 64 
+	ldi R27, 107		// counter
+	sts TCCR2B, R26
+	rcall delayPWM
+	dec R28
+	brne PWMLoop
+	ret
+
+; The timer from lab 3
+; Wait for TIMER0 to roll over.
+delayPWM:
+	lds R18, TCCR2A		; set to fast pwm mode, non-inverting
+	; Stop timer 0.
+	lds R26, TCCR2B		; Save configuration
+	ldi R26, 0x00		; Stop timer 0
+	sts TCCR2B, R26
+	; Clear overflow flag.
+	in R26, TIFR2		; tmp <-- TIFR0
+	sbr R26, 1 << TOV2	; clear TOV0, write logic 1
+	out TIFR2, R26
+	; Start timer with new initial count
+	sts TCNT2, R27	; Load counter
+	sts TCCR2B, R18	; Restart timer
+PWMWait:
+	in R26, TIFR2		; tmp <-- TIFR0
+	sbrs R26, TOV2		; Check overflow flag
+	rjmp PWMWait
+	ret	
 
 
 
