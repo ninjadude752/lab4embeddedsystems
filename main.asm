@@ -9,7 +9,7 @@
 		rjmp start
 
 sf80: .DB "F=80 kHZ",0		; create a static string in program memory
-buttonOn: .DB "Fan: On", 0 //length 7
+buttonOn: .DB "Fan: On ", 0 //length 8
 buttonOff: .DB "Fan: Off", 0 //length 8
 	;rcall displayCString
 
@@ -195,13 +195,13 @@ displayCString:
 	ldi R31, HIGH(2*sf80)	; load Z register high
 	rjmp L20
 displayFanOn:
-	clr R17
-	ldi R21, 7
+	ldi R17, 0x01
+	ldi R21, 8
 	ldi R30, LOW(2*buttonOn)
 	ldi R31, HIGH(2*buttonOn)
 	rjmp L20
 displayFanOff:
-	ldi R17, 0x01
+	clr R17
 	ldi R21, 8
 	ldi R30, LOW(2*buttonOff)
 	ldi R31, HIGH(2*buttonOff)
