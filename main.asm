@@ -16,23 +16,23 @@ buttonOff: .DB "Fan: Off", 0 //length 8
 
 
 start:
-	
-
-			// set A0-A3 on uC as output from LCD D4-D7
+	// set A0-A3 on uC as output from LCD D4-D7
 	sbi DDRC, 0		// D4
 	sbi DDRC, 1		// D5
 	sbi DDRC, 2		// D6
 	sbi DDRC, 3		// D7
 
 	//set pushbutton as input
-	sbi DDRC, 4
-	sbi DDRD, 3
+	cbi DDRC, 5
+
+	// set fan as output
+	sbi DDRB, 3
 
 	;sbi DDRD, 2		// RPG A signal	(pin2)
 	;sbi DDRD, 3		// RPG B signal (pin3)
 
-	;cbi DDRB, 0		// set pin8 on uC as input from PBS
-	sbi DDRB, 3		// set pin11 on uC as input from LCD pin 6 E (enable signal)
+
+	sbi DDRB, 4		// set pin11 on uC as input from LCD pin 6 E (enable signal)
 	sbi DDRB, 5		// set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
 
 	/*
@@ -41,16 +41,16 @@ start:
 	Interrupt Vector table
 	To initalize stack pointer
 	*/
-
-	
-
 	ldi R29, 50					; controls the delay time in delayloop
 	ldi R28, 50
-	.def tmp1 = R13
+	.def tmp1 = R23
 	.def tmp2 = R24		
 	.def counter = R20
+	.def pwmT1 = R18
+	.def pwmT2 = R26
+	.def pwwCount = R27
 	clr R25						; register to store nibble
-	ldi R17, 0x01 ;set fan bit to on
+	ldi R17, 0x01				; set fan bit to on
 
 	rcall changeMode
 	sbi PORTB, 5
@@ -58,7 +58,7 @@ start:
 	//need a function to move the cursor over 9 spaces to get to the next line
 	rcall nextLine
 	sbi PORTB, 5
-	rcall displayFanOn
+	rcall displayFanOff
 	;rcall clearDisplay
     //inc r16
 	;rcall PWMLoop
@@ -73,7 +73,7 @@ displayLoop:
 	rcall displayFanOn
 
 changeMode:
-	cbi PORTB, 3
+	cbi PORTB, 4
 	cbi PORTB, 5
 	// wait 100 ms
 	rcall delayLoop
@@ -254,9 +254,9 @@ delay_100u:
 
 // enable and disable the enable signal
 enable:
-	sbi PORTB, 3
+	sbi PORTB, 4
 	rcall delayLoop
-	cbi PORTB, 3
+	cbi PORTB, 4
 	rcall delayLoop
 	ret
 
@@ -322,11 +322,13 @@ tim0_ovf:
 
 
 PWMLoop:
-	ldi R18, 0x23		// value to set fast pwm mode
-	ldi R26, 0x03		// prescaler, 64 
-	ldi R27, 255		// counter
-	ldi R28, 49
-	sts OCR2B, R28
+	ldi R18, 0b00100011		// value to set fast pwm mode
+	ldi R26, 0x03		// prescaler, 32
+	ldi R27, 50		// counter
+
+	ldi R24, 64
+	sts OCR2B, R24
+	sts TCCR2A, R18
 	sts TCCR2B, R26
 	rcall delayPWM
 	dec R28
@@ -336,10 +338,11 @@ PWMLoop:
 ; The timer from lab 3
 ; Wait for TIMER0 to roll over.
 delayPWM:
-	lds R18, TCCR2A		; set to fast pwm mode, non-inverting
-	; Stop timer 0.
+	lds R18, TCCR2A		; set to fast pwm mode, non-inverting, set OC2B at BOTTOM
 	lds R26, TCCR2B		; Save configuration
+	; Stop timer 0.
 	ldi R26, 0x00		; Stop timer 0
+	sts TCCR2A, R26
 	sts TCCR2B, R26
 	; Clear overflow flag.
 	in R26, TIFR2		; tmp <-- TIFR0
@@ -353,8 +356,6 @@ PWMWait:
 	sbrs R26, TOV2		; Check overflow flag
 	rjmp PWMWait
 	ret	
-
-
 
 // end of the file
 end:
