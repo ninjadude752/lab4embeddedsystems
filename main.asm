@@ -48,9 +48,10 @@ start:
 	.def counter = R20
 	.def pwmT1 = R18
 	.def pwmT2 = R26
-	.def pwwCount = R27
+	.def pwmCount = R27
 	clr R25						; register to store nibble
 	ldi R17, 0x01				; set fan bit to on
+	rcall PWMLoop
 
 	rcall changeMode
 	sbi PORTB, 5
@@ -61,7 +62,7 @@ start:
 	rcall displayFanOff
 	;rcall clearDisplay
     //inc r16
-	;rcall PWMLoop
+
 	rjmp end
 
 displayLoop:
@@ -322,14 +323,14 @@ tim0_ovf:
 
 
 PWMLoop:
-	ldi R18, 0b00100011		// value to set fast pwm mode
-	ldi R26, 0x03		// prescaler, 32
-	ldi R27, 50		// counter
+	ldi R18, 0x23		// value to set fast pwm mode
+	ldi R26, 0x01		// prescaler, 32
+	ldi R27, 200			// counter
 
-	ldi R24, 64
-	sts OCR2B, R24
-	sts TCCR2A, R18
-	sts TCCR2B, R26
+	;ldi R24, 64
+	;sts OCR2B, R24
+	;sts TCCR2A, R18      ; set to fast pwm mode, non-inverting, set OC2B at BOTTOM
+	sts TCCR2B, R26			; set prescaler
 	rcall delayPWM
 	dec R28
 	brne PWMLoop
@@ -338,22 +339,22 @@ PWMLoop:
 ; The timer from lab 3
 ; Wait for TIMER0 to roll over.
 delayPWM:
-	lds R18, TCCR2A		; set to fast pwm mode, non-inverting, set OC2B at BOTTOM
-	lds R26, TCCR2B		; Save configuration
+	;lds pwmt1, TCCR2A		
+	in pwmt1, TCCR2B		; Save configuration
 	; Stop timer 0.
-	ldi R26, 0x00		; Stop timer 0
-	sts TCCR2A, R26
-	sts TCCR2B, R26
+	lds pwmt2, 0x00		; Stop timer 0
+	;sts TCCR2A, R26
+	sts TCCR2B, pwmt2
 	; Clear overflow flag.
-	in R26, TIFR2		; tmp <-- TIFR0
-	sbr R26, 1 << TOV2	; clear TOV0, write logic 1
-	out TIFR2, R26
+	in pwmt2, TIFR2		; tmp <-- TIFR0
+	sbr pwmt2, 1 << TOV2	; clear TOV0, write logic 1
+	out TIFR2, pwmt2
 	; Start timer with new initial count
-	sts TCNT2, R27	; Load counter
-	sts TCCR2B, R18	; Restart timer
+	sts TCNT2, pwmCount	; Load counter
+	sts TCCR2B, pwmt1	; Restart timer
 PWMWait:
-	in R26, TIFR2		; tmp <-- TIFR0
-	sbrs R26, TOV2		; Check overflow flag
+	in pwmt2, TIFR2		; tmp <-- TIFR0
+	sbrs pwmt2, TOV2		; Check overflow flag
 	rjmp PWMWait
 	ret	
 
