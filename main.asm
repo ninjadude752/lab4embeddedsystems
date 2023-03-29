@@ -51,6 +51,7 @@ start:
 	.def counter = R20
 	clr R25						; register to store nibble
 	ldi R17, 0x01				; set fan bit to on
+
 	
 	rcall changeMode
 	sbi PORTB, 5
@@ -142,8 +143,7 @@ changeMode:
 	rcall delayLoop
 	
 	// turn on display 0C hex
-	ldi R25, 0x00rcall nextLine
-	sbi PORTB,5
+	ldi R25, 0x00
 	out PORTC, R25
 	rcall enable
 	rcall delayLoop
