@@ -8,11 +8,9 @@
 	.org 0x0000
 		rjmp start
 
-sf80: .DB "F=80 kHZ",0		; create a static string in program memory
-buttonOn: .DB "Fan: On ", 0 //length 8
-buttonOff: .DB "Fan: Off", 0 //length 8
-	;rcall displayCString
-
+sf80: .DB "F=80 kHZ"		; create a static string in program memory
+buttonOn: .DB "Fan: On ",0 //length 8
+buttonOff: .DB "Fan: Off" //length 8
 
 
 start:
@@ -23,13 +21,14 @@ start:
 	sbi DDRC, 3		// D7
 
 	//set pushbutton as input
-	cbi DDRC, 5
+	cbi DDRB, 0
 
 	// set fan as output
-	;sbi DDRD, 3
 	sbi DDRD, 5
-	;sbi DDRD, 2		// RPG A signal	(pin2)
-	;sbi DDRD, 3		// RPG B signal (pin3)
+
+	// set rpg as output
+	sbi DDRC, 4		// RPG A signal	
+	sbi DDRC, 5		// RPG B signal 
 
 
 	sbi DDRB, 4		// set pin12 on uC as input from LCD pin 6 E (enable signal)
@@ -184,29 +183,21 @@ L20:
 	ret
 
 
+/*
 ; poll2 to read in from the RPG from lab 3
 poll2:
 	rcall readRPG2
 	mov R19, R22
-	andi R19, 0x3
+	andi R19, 0x03
 	cp R16, R19 
 	brne shiftAB
-	sbis PINB, 0
-	rcall wait_loop
 	rjmp poll2
-
-togglePower:
-	cpi R17, 0x00
-	breq displayFanOn
-	cpi R17, 0x01
-	breq displayFanOff
-	ret
 
 
 ;readRPG2 from lab 3 to read in the shifts
 readRPG2:
-	in R16, PIND
-	andi r16,0x03
+	in R16, PINC
+	andi R16, 0b110000
 	ret
 
 ;shiftAB from lab 3
@@ -214,12 +205,13 @@ shiftAB:
 	lsl R22
 	lsl R22
 	Or R22, R16
-	//rjmp compare
+	rjmp compare
+	*/
 
 ;The waiting loop from lab 3
-wait_loop:
+/*wait_loop:
 	rcall delayLoop
-	sbic PINB,0
+	sbic PINB, 0
 	//This was where the loop to check the code was run
 	//rjmp check_loop
 	dec R30
@@ -228,7 +220,7 @@ wait_loop:
 	clr R27
 	//This is where we cleared the code 
 	//rjmp reset
-	ret
+	ret*/
 
 
 clearDisplay:
@@ -244,17 +236,19 @@ clearDisplay:
 	rcall delayLoop
 	ret
 
-// delay of 100 us
-delay_100u:
-	
-	ret
-
 // enable and disable the enable signal
 enable:
 	sbi PORTB, 4
 	rcall delayLoop
 	cbi PORTB, 4
 	rcall delayLoop
+	ret
+
+togglePower:
+	cpi R17, 0x00
+	breq displayFanOn
+	cpi R17, 0x01
+	breq displayFanOff
 	ret
 
 nextLine:
@@ -269,6 +263,16 @@ nextLine:
 	rcall enable
 	rcall delayLoop
 	ret
+
+end:
+
+	;rjmp poll2
+	rcall nextLine
+	sbi PORTB,5
+	SBIS PINB,0
+	rcall togglePower
+	rjmp end
+
 
 ;The timer from lab 3 - with a 50.091 ms delay/
 ;It is going to have to be reconfigured for this lab
@@ -308,26 +312,38 @@ setCounter:
 	rcall PWMLoop
 	ret
 
+	/*
+compare:
+	cpi R22, 0b11010010
+	breq changeSpeed
+	cpi R22, 0b11100001
+	breq changeSpeed2
+	rjmp end
+	*/
+
+
 // timer 0
 PWMLoop:
 	ldi R18, 0b00110011		// value to set fast pwm mode
-	ldi R26, 0x03				// prescaler, 32
+	ldi R26, 0x03			// prescaler, 32
 	ldi R27, 200			// counter
 
 	out TCCR0A, R18			; set to fast pwm mode, inverting, clear OC0A at BOTTOM
 	out TCCR0B, R26			; set prescaler
 	out OCR0A, R27
-	ldi R27, 150	
+	rcall changeSpeed			
 	out OCR0B, R27
 
 	dec R28
 	brne PWMLoop
 	ret
 
+changeSpeed:
+	ldi R27, 255				; change this value to change the speed of the fan	
+	ret
+
+changeSpeed2:
+	ldi R27, 150
+	ret
+
 // end of the file
-end:
-	rcall nextLine
-	sbi PORTB,5
-	SBIS PINC,5
-	rcall togglePower
-	rjmp end
