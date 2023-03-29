@@ -26,14 +26,17 @@ start:
 	cbi DDRC, 5
 
 	// set fan as output
-	sbi DDRB, 3
-
+	;sbi DDRD, 3
+	sbi DDRD, 5
 	;sbi DDRD, 2		// RPG A signal	(pin2)
 	;sbi DDRD, 3		// RPG B signal (pin3)
 
 
-	sbi DDRB, 4		// set pin11 on uC as input from LCD pin 6 E (enable signal)
+	sbi DDRB, 4		// set pin12 on uC as input from LCD pin 6 E (enable signal)
 	sbi DDRB, 5		// set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
+	
+	rcall setCounter
+	rjmp start
 
 	/*
 	We need:
@@ -42,17 +45,13 @@ start:
 	To initalize stack pointer
 	*/
 	ldi R29, 50					; controls the delay time in delayloop
-	ldi R28, 50
+	
 	.def tmp1 = R23
 	.def tmp2 = R24		
 	.def counter = R20
-	.def pwmT1 = R18
-	.def pwmT2 = R26
-	.def pwmCount = R27
 	clr R25						; register to store nibble
 	ldi R17, 0x01				; set fan bit to on
-	rcall PWMLoop
-
+	
 	rcall changeMode
 	sbi PORTB, 5
 	rcall displayCString
@@ -62,7 +61,7 @@ start:
 	rcall displayFanOff
 	;rcall clearDisplay
     //inc r16
-
+	
 	rjmp end
 
 displayLoop:
@@ -306,57 +305,27 @@ wait:
 	sbrs tmp2, TOV0		; Check overflow flag
 	rjmp wait
 	ret	
-// Timer 0 Overflow interrupt ISR
-/*
-tim0_ovf:
-	push R25
-	in R25, SREG
-	push R25
-	sbi PINC, 5		; Toggle PORTC, 5  <== LED
-	ldi R25, 201	; Reload counter
-	out TCNT0, R25
-	pop R25
-	out SREG, R25
-	pop R25
-	reti
-*/
 
+setCounter:
+	ldi R28, 50
+	rcall PWMLoop
+	ret
 
+// timer 0
 PWMLoop:
-	ldi R18, 0x23		// value to set fast pwm mode
-	ldi R26, 0x01		// prescaler, 32
+	ldi R18, 0b00110011		// value to set fast pwm mode
+	ldi R26, 0x03				// prescaler, 32
 	ldi R27, 200			// counter
 
-	;ldi R24, 64
-	;sts OCR2B, R24
-	;sts TCCR2A, R18      ; set to fast pwm mode, non-inverting, set OC2B at BOTTOM
-	sts TCCR2B, R26			; set prescaler
-	rcall delayPWM
+	ldi R24, 150	
+	out TCCR0A, R18			; set to fast pwm mode, inverting, clear OC0A at BOTTOM
+	out TCCR0B, R26			; set prescaler
+	out OCR0A, R27
+	out OCR0B, R24
+
 	dec R28
 	brne PWMLoop
 	ret
-
-; The timer from lab 3
-; Wait for TIMER0 to roll over.
-delayPWM:
-	;lds pwmt1, TCCR2A		
-	in pwmt1, TCCR2B		; Save configuration
-	; Stop timer 0.
-	lds pwmt2, 0x00		; Stop timer 0
-	;sts TCCR2A, R26
-	sts TCCR2B, pwmt2
-	; Clear overflow flag.
-	in pwmt2, TIFR2		; tmp <-- TIFR0
-	sbr pwmt2, 1 << TOV2	; clear TOV0, write logic 1
-	out TIFR2, pwmt2
-	; Start timer with new initial count
-	sts TCNT2, pwmCount	; Load counter
-	sts TCCR2B, pwmt1	; Restart timer
-PWMWait:
-	in pwmt2, TIFR2		; tmp <-- TIFR0
-	sbrs pwmt2, TOV2		; Check overflow flag
-	rjmp PWMWait
-	ret	
 
 // end of the file
 end:
