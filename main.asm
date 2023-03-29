@@ -36,7 +36,6 @@ start:
 	sbi DDRB, 5		// set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
 	
 	rcall setCounter
-	rjmp start
 
 	/*
 	We need:
@@ -59,9 +58,7 @@ start:
 	rcall nextLine
 	sbi PORTB, 5
 	rcall displayFanOff
-	;rcall clearDisplay
     //inc r16
-	
 	rjmp end
 
 displayLoop:
@@ -280,29 +277,29 @@ delayLoop:
 	ldi R23, 0x01		// tmp1
 	ldi R24, 0x03		// prescaler, 64 
 	ldi R20, 230		// counter
-	out TCCR0B, R24
+	sts TCCR2B, R24
 	rcall delay
 	dec R29
 	brne delayLoop
 	ret
 
 ; The timer from lab 3
-; Wait for TIMER0 to roll over.
+; Wait for TIMER2 to roll over.
 delay:
 	; Stop timer 0.
-	in tmp1, TCCR0B		; Save configuration
-	ldi tmp2, 0x00		; Stop timer 0
-	out TCCR0B, tmp2
+	lds tmp1, TCCR2B	; Save configuration
+	ldi tmp2, 0x00		; Stop timer 2
+	sts TCCR2B, tmp2
 	; Clear overflow flag.
-	in tmp2, TIFR0		; tmp <-- TIFR0
-	sbr tmp2, 1 << TOV0	; clear TOV0, write logic 1
-	out TIFR0, tmp2
+	in tmp2, TIFR2		; tmp <-- TIFR0
+	sbr tmp2, 1 << TOV2	; clear TOV2, write logic 1
+	out TIFR2, tmp2
 	; Start timer with new initial count
-	out TCNT0, counter	; Load counter
-	out TCCR0B, tmp1	; Restart timer
+	sts TCNT2, counter	; Load counter
+	sts TCCR2B, tmp1	; Restart timer
 wait:
-	in tmp2, TIFR0		; tmp <-- TIFR0
-	sbrs tmp2, TOV0		; Check overflow flag
+	in tmp2, TIFR2		; tmp <-- TIFR2
+	sbrs tmp2, TOV2		; Check overflow flag
 	rjmp wait
 	ret	
 
@@ -317,11 +314,11 @@ PWMLoop:
 	ldi R26, 0x03				// prescaler, 32
 	ldi R27, 200			// counter
 
-	ldi R24, 150	
 	out TCCR0A, R18			; set to fast pwm mode, inverting, clear OC0A at BOTTOM
 	out TCCR0B, R26			; set prescaler
 	out OCR0A, R27
-	out OCR0B, R24
+	ldi R27, 150	
+	out OCR0B, R27
 
 	dec R28
 	brne PWMLoop
