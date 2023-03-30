@@ -5,8 +5,12 @@
 ; Author : smblackwll
 ;
 .cseg
-	.org 0x0000
-		rjmp start
+.org 0x0000
+	rjmp start
+
+.org 0x0006
+	jmp buttonInt
+
 
 sf80: .DB "F=80 kHZ"	; create a static string in program memory
 buttonOn: .DB "Fan: On " //length 8
@@ -14,8 +18,14 @@ buttonOff: .DB "Fan: Off" //length 8
 	;rcall displayCString
 
 
-
 start:
+	cli						; disable interrupts
+	// set up stack pointer
+	ldi R16, low(RAMEND)
+	out SPL, R16
+	ldi R16, high(RAMEND)
+	out SPH, R16
+	clr R16
 	// set A0-A3 on uC as output from LCD D4-D7
 	sbi DDRC, 0		// D4
 	sbi DDRC, 1		// D5
@@ -29,42 +39,50 @@ start:
 	sbi DDRD, 5
 	
 	// set RPG as intput
-	cbi DDRC, 4		// RPG A signal	(pin2)
-	cbi DDRC, 5		// RPG B signal (pin3)
+	cbi DDRC, 4		; RPG A signal	(pin2)
+	cbi DDRC, 5		; RPG B signal (pin3)
 
 
-	sbi DDRB, 4		// set pin12 on uC as input from LCD pin 6 E (enable signal)
-	sbi DDRB, 5		// set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
+	sbi DDRB, 4		; set pin12 on uC as input from LCD pin 6 E (enable signal)
+	sbi DDRB, 5		; set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
 	
-	;ldi R27, 200
-
-	rcall setCounter
+	rcall setCounter			; set the counter for the fan, and also starts the fan
 
 	/*
 	We need:
 	Interrupt
 	Interrupt Vector table
 	To initalize stack pointer
-	*/
-	ldi R29, 50					; controls the delay time in delayloop
-	
+	*/	
 	.def tmp1 = R23
 	.def tmp2 = R24		
 	.def counter = R20
+	
+	ldi R29, 50					; controls the delay time in delayloop
 	clr R25						; register to store nibble
 	ldi R17, 0x01				; set fan bit to on
 
-	
 	rcall changeMode
-	sbi PORTB, 5
+	sbi PORTB, 5				; change to character mode not instruction
 	rcall displayCString
-	//need a function to move the cursor over 9 spaces to get to the next line
-	rcall nextLine
+	rcall nextLine				; function to move the cursor over 9 spaces to get to the next line
 	sbi PORTB, 5
 	rcall displayFanOff
     //inc r16
-	;rjmp end
+
+	sei							; enable interrupts 	
 	rjmp poll2
+
+buttonInt:
+	push R18
+	in R18, SREG
+	push R18
+	rcall togglePower
+
+	pop R18
+	out SREG, R18
+	pop R18
+	reti
 
 displayLoop:
 	sbi PORTB, 5
@@ -232,6 +250,7 @@ nextLine:
 	rcall delayLoop
 	ret
 
+
 ;The timer from lab 3 - with a 50.091 ms delay/
 ;It is going to have to be reconfigured for this lab
 // run this once to get 50.091 ms delay
@@ -268,6 +287,7 @@ wait:
 setCounter:
 	ldi R28, 50
 	rcall PWMLoop
+	clr R18
 	ret
 
 // timer 0
@@ -296,12 +316,14 @@ changeSpeed2:
 	rjmp poll2
 
 // end of the file
+/*
 end:
 	rcall nextLine
 	sbi PORTB,5
 	SBIS PINB,0
 	rcall togglePower
 	rjmp end
+*/
 
 ; poll2 to read in from the RPG from lab 3
 poll2:
@@ -310,8 +332,8 @@ poll2:
 	andi R19, 0x30
 	cp R16, R19 
 	brne shiftAB
-	SBIS PINB, 0
-	rcall togglePower
+	;SBIS PINB, 0
+	;rcall togglePower
 	rjmp poll2
 
 
