@@ -36,6 +36,8 @@ start:
 	sbi DDRB, 4		// set pin12 on uC as input from LCD pin 6 E (enable signal)
 	sbi DDRB, 5		// set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
 	
+	;ldi R27, 200
+
 	rcall setCounter
 
 	/*
@@ -277,20 +279,21 @@ PWMLoop:
 	out TCCR0A, R18			; set to fast pwm mode, inverting, clear OC0A at BOTTOM
 	out TCCR0B, R26			; set prescaler
 	out OCR0A, R27
-	rcall changeSpeed	
+	ldi R27, 95
 	out OCR0B, R27
-
 	dec R28
 	brne PWMLoop
 	ret
 
 changeSpeed:
-	ldi R27, 150
-	ret
+	ldi R27, 10
+	out OCR0B, R27
+	rjmp poll2
 
 changeSpeed2:
 	ldi R27, 255
-	ret
+	out OCR0B, R27
+	rjmp poll2
 
 // end of the file
 end:
