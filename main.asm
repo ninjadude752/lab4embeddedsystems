@@ -12,7 +12,7 @@
 .org 0x0002
 	jmp buttonInt
 
-.org 0x0008
+.org 0x0006
 	jmp rpgInt
 
 
@@ -35,9 +35,9 @@ start:
 	ldi R16, 0x02			; INT0 on falling edge
 	sts EICRA, R16
 	// RPG
-	ldi R16, 0b00110000
-	sts PCMSK1, R16
-	ldi R16, 0x02
+	ldi R16, 0x03
+	sts PCMSK0, R16
+	ldi R16, 0x01
 	sts PCICR, R16
 
 	// set A0-A3 on uC as output from LCD D4-D7
@@ -53,8 +53,8 @@ start:
 	sbi DDRD, 5
 	
 	// set RPG as intput
-	cbi DDRC, 4		; RPG A signal	(pin2)
-	cbi DDRC, 5		; RPG B signal (pin3)
+	cbi DDRB, 1		; RPG A signal	(pin8)
+	cbi DDRB, 0		; RPG B signal (pin8)
 
 
 	sbi DDRB, 4		; set pin12 on uC as input from LCD pin 6 E (enable signal)
@@ -359,7 +359,7 @@ changeSpeedClock:
 poll2:
 	rcall readRPG2
 	mov R19, R22
-	andi R19, 0x30
+	andi R19, 0x03
 	cp R16, R19 
 	brne shiftAB
 	;rjmp poll2
@@ -367,8 +367,8 @@ poll2:
 
 ;readRPG2 from lab 3 to read in the shifts
 readRPG2:
-	in R16, PINC
-	andi r16, 0x30
+	in R16, PINB
+	andi r16, 0x03
 	ret
 
 ;shiftAB from lab 3
