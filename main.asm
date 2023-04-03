@@ -338,22 +338,33 @@ turnoffFan:
 	ret
 
 turnOnFan:
-	ldi R27, 10
+	ldi R27, 1
 	out OCR0B, R27
 	ret
 
 // need to implement this so that it doesn't go over
 
 changeSpeedCounter:
+	cpi R27, 255
+	breq decrement
 	inc R27
 	out OCR0B, R27
 	rjmp poll2
 
 changeSpeedClock:
+	cpi R27, 1
+	breq increment
 	dec R27
 	out OCR0B, R27
 	rjmp poll2
 
+decrement:
+	dec R27
+	ret
+
+increment:
+	inc R27
+	ret
 
 ; poll2 to read in from the RPG from lab 3
 poll2:
@@ -362,7 +373,6 @@ poll2:
 	andi R19, 0x03
 	cp R16, R19 
 	brne shiftAB
-	;rjmp poll2
 
 
 ;readRPG2 from lab 3 to read in the shifts
