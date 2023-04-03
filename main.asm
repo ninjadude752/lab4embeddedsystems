@@ -4,6 +4,7 @@
 ; Created: 3/23/2023 3:15:04 PM
 ; Author : smblackwll
 ;
+
 .cseg
 .org 0x0000
 	rjmp start
@@ -12,7 +13,7 @@
 	jmp buttonInt
 
 
-sf80: .DB "F=80 kHZ"	; create a static string in program memory
+sf80: .DB "DC=50.0%"	; create a static string in program memory
 buttonOn: .DB "Fan: On " //length 8
 buttonOff: .DB "Fan: Off" //length 8
 	;rcall displayCString
@@ -26,6 +27,11 @@ start:
 	ldi R16, high(RAMEND)
 	out SPH, R16
 	clr R16
+	ldi R16, 0x01			; enable INT0
+	out EIMSK, R16
+	ldi R16, 0x01			; any logical change on INT0 generates an interrupt resquest
+	sts EICRA, R16
+
 	// set A0-A3 on uC as output from LCD D4-D7
 	sbi DDRC, 0		// D4
 	sbi DDRC, 1		// D5
@@ -48,12 +54,6 @@ start:
 	
 	rcall setCounter			; set the counter for the fan, and also starts the fan
 
-	/*
-	We need:
-	Interrupt
-	Interrupt Vector table
-	To initalize stack pointer
-	*/	
 	.def tmp1 = R23
 	.def tmp2 = R24		
 	.def counter = R20
@@ -74,9 +74,11 @@ start:
 	rjmp poll2
 
 buttonInt:
+	cli
 	push R18
 	in R18, SREG
 	push R18
+	sbi PINB, 0
 	rcall togglePower
 
 	pop R18
