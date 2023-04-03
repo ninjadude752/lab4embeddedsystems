@@ -342,8 +342,6 @@ turnOnFan:
 	out OCR0B, R27
 	ret
 
-// need to implement this so that it doesn't go over
-
 changeSpeedCounter:
 	cpi R27, 255
 	breq decrement
@@ -373,6 +371,7 @@ poll2:
 	andi R19, 0x03
 	cp R16, R19 
 	brne shiftAB
+	;rjmp poll2
 
 
 ;readRPG2 from lab 3 to read in the shifts
