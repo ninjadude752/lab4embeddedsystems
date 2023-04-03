@@ -9,14 +9,13 @@
 .org 0x0000
 	rjmp start
 
-.org 0x0006
+.org 0x0002
 	jmp buttonInt
 
 
 sf80: .DB "DC=50.0%"	; create a static string in program memory
 buttonOn: .DB "Fan: On " //length 8
 buttonOff: .DB "Fan: Off" //length 8
-	;rcall displayCString
 
 
 start:
@@ -29,7 +28,7 @@ start:
 	clr R16
 	ldi R16, 0x01			; enable INT0
 	out EIMSK, R16
-	ldi R16, 0x01			; any logical change on INT0 generates an interrupt resquest
+	ldi R16, 0x02			; any logical change on INT0 generates an interrupt resquest
 	sts EICRA, R16
 
 	// set A0-A3 on uC as output from LCD D4-D7
@@ -39,7 +38,7 @@ start:
 	sbi DDRC, 3		// D7
 
 	//set pushbutton as input
-	cbi DDRB, 0
+	cbi DDRD, 2
 
 	// set fan as output
 	sbi DDRD, 5
@@ -78,7 +77,6 @@ buttonInt:
 	push R18
 	in R18, SREG
 	push R18
-	sbi PINB, 0
 	rcall togglePower
 
 	pop R18
