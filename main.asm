@@ -12,6 +12,9 @@
 .org 0x0002
 	jmp buttonInt
 
+.org 0x0008
+	jmp rpgInt
+
 
 sf80: .DB "DC=50.0%"	; create a static string in program memory
 buttonOn: .DB "Fan: On " //length 8
@@ -26,10 +29,16 @@ start:
 	ldi R16, high(RAMEND)
 	out SPH, R16
 	clr R16
+	// pushbutton
 	ldi R16, 0x01			; enable INT0
 	out EIMSK, R16
-	ldi R16, 0x02			; any logical change on INT0 generates an interrupt resquest
+	ldi R16, 0x02			; INT0 on falling edge
 	sts EICRA, R16
+	// RPG
+	ldi R16, 0b00110000
+	sts PCMSK1, R16
+	ldi R16, 0x02
+	sts PCICR, R16
 
 	// set A0-A3 on uC as output from LCD D4-D7
 	sbi DDRC, 0		// D4
@@ -70,7 +79,9 @@ start:
     //inc r16
 
 	sei							; enable interrupts 	
-	rjmp poll2
+
+main:
+	rjmp main
 
 buttonInt:
 	cli
@@ -78,7 +89,21 @@ buttonInt:
 	in R18, SREG
 	push R18
 	rcall togglePower
+	
+	pop R18
+	out SREG, R18
+	pop R18
+	reti
 
+rpgInt:
+	cli
+	push R18
+	in R18, SREG
+	push R18
+	rcall poll2				; ?
+	rcall poll2
+	rcall poll2
+	rcall poll2
 	pop R18
 	out SREG, R18
 	pop R18
@@ -184,12 +209,14 @@ displayFanOn:
 	ldi R21, 8
 	ldi R30, LOW(2*buttonOn)
 	ldi R31, HIGH(2*buttonOn)
+	rcall turnOnFan
 	rjmp L20
 displayFanOff:
 	clr R17
 	ldi R21, 8
 	ldi R30, LOW(2*buttonOff)
 	ldi R31, HIGH(2*buttonOff)
+	rcall turnOffFan
 	rjmp L20
 L20:
 	lpm
@@ -299,31 +326,34 @@ PWMLoop:
 	out TCCR0A, R18			; set to fast pwm mode, inverting, clear OC0A at BOTTOM
 	out TCCR0B, R26			; set prescaler
 	out OCR0A, R27
-	ldi R27, 95
+	ldi R27, 255
 	out OCR0B, R27
 	dec R28
 	brne PWMLoop
 	ret
 
-changeSpeed:
-	ldi R27, 10
-	out OCR0B, R27
-	rjmp poll2
-
-changeSpeed2:
+turnoffFan:
 	ldi R27, 255
 	out OCR0B, R27
+	ret
+
+turnOnFan:
+	ldi R27, 10
+	out OCR0B, R27
+	ret
+
+changeSpeedCounter:
+	inc R27
+	inc R27
+	out OCR0B, R27
 	rjmp poll2
 
-// end of the file
-/*
-end:
-	rcall nextLine
-	sbi PORTB,5
-	SBIS PINB,0
-	rcall togglePower
-	rjmp end
-*/
+changeSpeedClock:
+	dec R27
+	dec R27
+	out OCR0B, R27
+	rjmp poll2
+
 
 ; poll2 to read in from the RPG from lab 3
 poll2:
@@ -332,9 +362,7 @@ poll2:
 	andi R19, 0x30
 	cp R16, R19 
 	brne shiftAB
-	;SBIS PINB, 0
-	;rcall togglePower
-	rjmp poll2
+	;rjmp poll2
 
 
 ;readRPG2 from lab 3 to read in the shifts
@@ -352,7 +380,7 @@ shiftAB:
 
 compare:
 	cpi R22, 0b11010010
-	breq changeSpeed
+	breq changeSpeedCounter
 	cpi R22, 0b11100001
-	breq changeSpeed2
+	breq changeSpeedClock
 	rjmp poll2
