@@ -100,7 +100,7 @@ rpgInt:
 	push R18
 	in R18, SREG
 	push R18
-	rcall poll2				; ?
+	rcall poll2				
 	rcall poll2
 	rcall poll2
 	rcall poll2
@@ -342,14 +342,14 @@ turnOnFan:
 	out OCR0B, R27
 	ret
 
+// need to implement this so that it doesn't go over
+
 changeSpeedCounter:
-	inc R27
 	inc R27
 	out OCR0B, R27
 	rjmp poll2
 
 changeSpeedClock:
-	dec R27
 	dec R27
 	out OCR0B, R27
 	rjmp poll2
