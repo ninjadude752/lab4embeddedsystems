@@ -16,9 +16,19 @@
 	jmp rpgInt
 
 
-sf80: .DB "DC=50.0%"	; create a static string in program memory
+sf80: .DB "DC=25.0%"	; create a static string in program memory
 buttonOn: .DB "Fan: On " //length 8
 buttonOff: .DB "Fan: Off" //length 8
+
+
+.DEF DREM16UL = R23
+.DEF DREM16UH = R24
+.DEF DRES16UL = R26
+.DEF DRES16UH = R27
+.DEF DD16UL = R26
+.DEF DD16UH = R27
+.DEF DV16UL = R19
+.DEF DV16UH = R20
 
 
 start:
@@ -35,10 +45,10 @@ start:
 	ldi R16, 0x02			; INT0 on falling edge
 	sts EICRA, R16
 	// RPG
-	ldi R16, 0x03
-	sts PCMSK0, R16
-	ldi R16, 0x01
-	sts PCICR, R16
+	ldi R17, 0x03
+	sts PCMSK0, R17
+	ldi R17, 0x01
+	sts PCICR, R17
 
 	// set A0-A3 on uC as output from LCD D4-D7
 	sbi DDRC, 0		// D4
@@ -52,13 +62,13 @@ start:
 	// set fan as output
 	sbi DDRD, 5
 	
-	// set RPG as intput
+	// set RPG as input
 	cbi DDRB, 1		; RPG A signal	(pin8)
 	cbi DDRB, 0		; RPG B signal (pin8)
 
 
-	sbi DDRB, 4		; set pin12 on uC as input from LCD pin 6 E (enable signal)
-	sbi DDRB, 5		; set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
+	sbi DDRB, 4		; set pin12 on uC as output from LCD pin 6 E (enable signal)
+	sbi DDRB, 5		; set pin13 on uC as output from LCD pin 4 RS (0 = instruction input, 1 = data input)
 	
 	rcall setCounter			; set the counter for the fan, and also starts the fan
 
@@ -197,6 +207,31 @@ changeMode:
 	rcall enable
 	rcall delayLoop
 	ret
+
+
+
+DisplayCycleString:
+.dseg
+	dtxt: .BYTE 5 ; Allocation
+.cseg
+	mov dd16uL,r25 ; LSB of number to display DEFINE
+	mov dd16uH,r26 ; MSB of number to display DEFINE
+	ldi dv16uL,low(10) //DEFINE
+	ldi dv16uH,high(10) //DEFINE
+	; Store terminating for the string.
+	ldi R28,0x00 ; Terminating NULL
+	sts dtxt+4,R28 ; Store in RAM
+	; Divide the number by 10 and format remainder.
+	rcall div16u ; Result: r17:r16, rem: r15:r14  DEFINE
+	ldi R28,0x30
+	add r14,R28 ; Convert to ASCII
+	sts dtxt+3,r14 ; Store in RAM
+	; Generate decimal point.
+	ldi R28,0x2e ; ASCII code for .
+	sts dtxt+2,R28 ; Store in RAM
+
+
+
 	
 
 displayCString:
@@ -205,18 +240,26 @@ displayCString:
 	ldi R31, HIGH(2*sf80)	; load Z register high
 	rjmp L20
 displayFanOn:
+	//rcall nextLine
+	//sbi PORTB,5
 	ldi R17, 0x01
 	ldi R21, 8
 	ldi R30, LOW(2*buttonOn)
 	ldi R31, HIGH(2*buttonOn)
-	rcall turnOnFan
+	;rcall turnOnFan
+	ldi R27, 191
+	out OCR0B, R27
 	rjmp L20
 displayFanOff:
+	//rcall nextLine
+	//sbi PORTB,5
 	clr R17
 	ldi R21, 8
 	ldi R30, LOW(2*buttonOff)
 	ldi R31, HIGH(2*buttonOff)
-	rcall turnOffFan
+	;rcall turnOffFan
+	ldi R27, 255
+	out OCR0B, R27
 	rjmp L20
 L20:
 	lpm
@@ -266,15 +309,15 @@ togglePower:
 
 nextLine:
 	cbi PORTB, 5
-	rcall delayLoop
+	//rcall delayLoop
 	ldi R25, 0x0C
 	out PORTC, R25
 	rcall enable
-	rcall delayLoop
+	//rcall delayLoop
 	ldi R25, 0x00
 	out PORTC, R25
 	rcall enable
-	rcall delayLoop
+	//rcall delayLoop
 	ret
 
 
@@ -282,6 +325,7 @@ nextLine:
 ;It is going to have to be reconfigured for this lab
 // run this once to get 50.091 ms delay
 delayLoop:
+	cli
 	ldi R23, 0x01		// tmp1
 	ldi R24, 0x03		// prescaler, 64 
 	ldi R20, 230		// counter
@@ -289,6 +333,7 @@ delayLoop:
 	rcall delay
 	dec R29
 	brne delayLoop
+	sei
 	ret
 
 ; The timer from lab 3
@@ -320,7 +365,7 @@ setCounter:
 // timer 0
 PWMLoop:
 	ldi R18, 0b00110011		// value to set fast pwm mode
-	ldi R26, 0x03				// prescaler, 32
+	ldi R26, 0x01				// prescaler, 32
 	ldi R27, 200			// counter
 
 	out TCCR0A, R18			; set to fast pwm mode, inverting, clear OC0A at BOTTOM
@@ -332,15 +377,12 @@ PWMLoop:
 	brne PWMLoop
 	ret
 
-turnoffFan:
+turnOffFan:
 	ldi R27, 255
 	out OCR0B, R27
 	ret
 
-turnOnFan:
-	ldi R27, 1
-	out OCR0B, R27
-	ret
+
 
 changeSpeedCounter:
 	cpi R27, 255
@@ -350,7 +392,7 @@ changeSpeedCounter:
 	rjmp poll2
 
 changeSpeedClock:
-	cpi R27, 1
+	cpi R27, 0
 	breq increment
 	dec R27
 	out OCR0B, R27
