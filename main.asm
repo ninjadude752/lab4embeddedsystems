@@ -16,7 +16,8 @@
 	jmp rpgInt
 
 
-sf80: .DB "DC=25.0%"	; create a static string in program memory
+sf80: .DB "DC="	; create a static string in program memory
+defaultHz: .DB 250
 buttonOn: .DB "Fan: On " //length 8
 buttonOff: .DB "Fan: Off" //length 8
 
@@ -49,6 +50,8 @@ start:
 	sts PCMSK0, R17
 	ldi R17, 0x01
 	sts PCICR, R17
+
+
 
 	// set A0-A3 on uC as output from LCD D4-D7
 	sbi DDRC, 0		// D4
@@ -83,6 +86,10 @@ start:
 	rcall changeMode
 	sbi PORTB, 5				; change to character mode not instruction
 	rcall displayCString
+	;rcall rpgChange
+	;sbi PORTB, 5
+	rcall DisplayCycleString
+	rcall setupDstring
 	rcall nextLine				; function to move the cursor over 9 spaces to get to the next line
 	sbi PORTB, 5
 	rcall displayFanOff
@@ -206,6 +213,7 @@ changeMode:
 	out PORTC, R25
 	rcall enable
 	rcall delayLoop
+
 	ret
 
 
@@ -214,8 +222,8 @@ DisplayCycleString:
 .dseg
 	dtxt: .BYTE 5 ; Allocation
 .cseg
-	mov dd16uL,r25 ; LSB of number to display DEFINE
-	mov dd16uH,r26 ; MSB of number to display DEFINE
+	mov dd16uL,R26 ; LSB of number to display DEFINE
+	mov dd16uH,r27 ; MSB of number to display DEFINE
 	ldi dv16uL,low(10) //DEFINE
 	ldi dv16uH,high(10) //DEFINE
 	; Store terminating for the string.
@@ -229,13 +237,33 @@ DisplayCycleString:
 	; Generate decimal point.
 	ldi R28,0x2e ; ASCII code for .
 	sts dtxt+2,R28 ; Store in RAM
+	ret
+
+setupDstring:
+	ldi R21, 5
+	ldi R30, LOW(2*dtxt)
+	ldi R31, HIGH(2*dtxt)
+	;rcall displayDstring
+	rcall L20
 
 
-
+displayDstring:
+	ld r0,Z
+	tst r0 ; Reached end of message ?
+	breq done_dsd ; Yes => quit
+	swap r0 ; Upper nibble in place
+	out PORTC,r0 ; Send upper nibble out
+	rcall enable ; Latch nibble
+	swap r0 ; Lower nibble in place
+	out PORTC,r0 ; Send lower nibble out
+	rcall enable ; Latch nibble
+	rjmp displayDString
+done_dsd:
+	ret
 	
 
 displayCString:
-	ldi R21, 8				; length of the string
+	ldi R21, 3				; length of the string
 	ldi R30, LOW(2*sf80)	; load Z register low
 	ldi R31, HIGH(2*sf80)	; load Z register high
 	rjmp L20
@@ -247,8 +275,8 @@ displayFanOn:
 	ldi R30, LOW(2*buttonOn)
 	ldi R31, HIGH(2*buttonOn)
 	;rcall turnOnFan
-	ldi R27, 191
-	out OCR0B, R27
+	ldi R29, 191
+	out OCR0B, R29
 	rjmp L20
 displayFanOff:
 	//rcall nextLine
@@ -258,8 +286,8 @@ displayFanOff:
 	ldi R30, LOW(2*buttonOff)
 	ldi R31, HIGH(2*buttonOff)
 	;rcall turnOffFan
-	ldi R27, 255
-	out OCR0B, R27
+	ldi R29, 255
+	out OCR0B, R29
 	rjmp L20
 L20:
 	lpm
@@ -315,6 +343,18 @@ nextLine:
 	rcall enable
 	//rcall delayLoop
 	ldi R25, 0x00
+	out PORTC, R25
+	rcall enable
+	//rcall delayLoop
+	ret
+rpgChange:
+	cbi PORTB, 5
+	//rcall delayLoop
+	ldi R25, 0x00
+	out PORTC, R25
+	rcall enable
+	//rcall delayLoop
+	ldi R25, 0x03
 	out PORTC, R25
 	rcall enable
 	//rcall delayLoop
@@ -378,32 +418,36 @@ PWMLoop:
 	ret
 
 turnOffFan:
-	ldi R27, 255
-	out OCR0B, R27
+	ldi R29, 255
+	out OCR0B, R29
 	ret
 
 
 
 changeSpeedCounter:
-	cpi R27, 255
+	cpi R29, 255
 	breq decrement
-	inc R27
-	out OCR0B, R27
+	inc R29
+	out OCR0B, R29
 	rjmp poll2
 
 changeSpeedClock:
-	cpi R27, 0
+	cpi R29, 0
 	breq increment
-	dec R27
-	out OCR0B, R27
+	dec R29
+	out OCR0B, R29
 	rjmp poll2
 
 decrement:
-	dec R27
+	dec R29
+	subi R19, low(-4)
+	subi R20, high(-4)
 	ret
 
 increment:
-	inc R27
+	inc R29
+	subi R19, low(4)
+	subi R20, high(4)
 	ret
 
 ; poll2 to read in from the RPG from lab 3
