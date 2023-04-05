@@ -5,6 +5,11 @@
 ; Author : smblackwll
 ;
 
+
+.dseg
+	dtxt: .BYTE 5 ; Allocation
+
+
 .cseg
 .org 0x0000
 	rjmp start
@@ -20,6 +25,18 @@ sf80: .DB "DC="	; create a static string in program memory
 defaultHz: .DB 250
 buttonOn: .DB "Fan: On " //length 8
 buttonOff: .DB "Fan: Off" //length 8
+
+
+/*
+.DEF DREM16UL = R23
+.DEF DREM16UH = R24
+.DEF DRES16UL = R26
+.DEF DRES16UH = R27
+.DEF DD16UL = R26
+.DEF DD16UH = R27
+.DEF DV16UL = R19
+.DEF DV16UH = R20
+*/
 
 start:
 	cli						; disable interrupts
@@ -66,7 +83,7 @@ start:
 
 	.def tmp1 = R23
 	.def tmp2 = R24		
-	.def counter = R18
+	.def counter = R20
 	
 	ldi R29, 50					; controls the delay time in delayloop
 	clr R25						; register to store nibble
@@ -75,16 +92,16 @@ start:
 	rcall changeMode
 	sbi PORTB, 5				; change to character mode not instruction
 	rcall displayCString
-
-	ldi R20, low(100)
-	ldi R21, high(100)
 	;rcall rpgChange
 	sbi PORTB, 5
+	ldi R30, low(996)
+	ldi R31, high(996)
 	rcall DisplayCycleString
-	;rcall setupDstring
+	rcall setupDstring
 	rcall nextLine				; function to move the cursor over 9 spaces to get to the next line
 	sbi PORTB, 5
 	rcall displayFanOff
+    //inc r16
 
 	sei							; enable interrupts 	
 
@@ -204,56 +221,66 @@ changeMode:
 	out PORTC, R25
 	rcall enable
 	rcall delayLoop
+
 	ret
 
 
 
 DisplayCycleString:
-.dseg
-	dtxt: .BYTE 5 ; Allocation
+//.dseg
+	//dtxt: .BYTE 5 ; Allocation
 .cseg
-	mov dd16uL,R20 ; LSB of number to display DEFINE		;need to change R26 to another register, this is the actual duty cycle value 
-	mov dd16uH,R21 ; MSB of number to display DEFINE		; need to change R27 to another register
-	ldi dv16uL,low(10) //DEFINE divisor
-	ldi dv16uH,high(10) //DEFINE divisor
+	mov dd16uL,R30 ; LSB of number to display DEFINE
+	mov dd16uH,R31 ; MSB of number to display DEFINE
+	ldi dv16uL,low(10) //DEFINE
+	ldi dv16uH,high(10) //DEFINE
 	; Store terminating for the string.
-	ldi R28,0x00 ; Terminating NULL
-	sts dtxt+4,R28 ; Store in RAM
+	ldi R20,0x00 ; Terminating NULL
+	sts dtxt+4,R20 ; Store in RAM
 	; Divide the number by 10 and format remainder.
 	rcall div16u ; Result: r17:r16, rem: r15:r14  DEFINE
-	ldi R28,0x30
-	add r14,R28 ; Convert to ASCII
+	ldi R20,0x30
+	add r14,R20 ; Convert to ASCII
 	sts dtxt+3,r14 ; Store in RAM
 	; Generate decimal point.
-	ldi R28,0x2e ; ASCII code for .
-	sts dtxt+2,R28 ; Store in RAM
+	ldi R20,0x2e ; ASCII code for .
+	sts dtxt+2,R20 ; Store in RAM
+	rcall div16u ; Result: r17:r16, rem: r15:r14  DEFINE
+	ldi R20,0x30
+	add r14,R20 ; Convert to ASCII
+	sts dtxt+1,r14 ; Store in RAM
+	rcall div16u ; Result: r17:r16, rem: r15:r14  DEFINE
+	ldi R20,0x30
+	add r14,R20 ; Convert to ASCII
+	sts dtxt+0,r14 ; Store in RAM
 	ret
 
 setupDstring:
-	ldi R19, 5
+	ldi R21, 5
 	ldi R30, LOW(dtxt)
 	ldi R31, HIGH(dtxt)
 	rcall displayDstring
 	;rcall L20
+	ret
 
 
 displayDstring:
-	ld r0,Z
-	tst r0					; Reached end of message ?
-	breq done_dsd			; Yes => quit
-	swap r0					; Upper nibble in place
-	out PORTC,r0			; Send upper nibble out
-	rcall enable			; Latch nibble
-	swap r0					; Lower nibble in place
-	out PORTC,r0			; Send lower nibble out
-	rcall enable			; Latch nibble
+	ld r0,Z+
+	tst r0 ; Reached end of message ?
+	breq done_dsd ; Yes => quit
+	swap r0 ; Upper nibble in place
+	out PORTC,r0 ; Send upper nibble out
+	rcall enable ; Latch nibble
+	swap r0 ; Lower nibble in place
+	out PORTC,r0 ; Send lower nibble out
+	rcall enable ; Latch nibble
 	rjmp displayDString
 done_dsd:
 	ret
 	
 
 displayCString:
-	ldi R19, 3				; length of the string
+	ldi R21, 3				; length of the string
 	ldi R30, LOW(2*sf80)	; load Z register low
 	ldi R31, HIGH(2*sf80)	; load Z register high
 	rjmp L20
@@ -261,18 +288,22 @@ displayFanOn:
 	//rcall nextLine
 	//sbi PORTB,5
 	ldi R17, 0x01
-	ldi R19, 8
+	ldi R21, 8
+	clr R30
+	clr R31
 	ldi R30, LOW(2*buttonOn)
 	ldi R31, HIGH(2*buttonOn)
 	;rcall turnOnFan
-	ldi R29, 191
+	ldi R29, 0				; 191 is 25% DC
 	out OCR0B, R29
 	rjmp L20
 displayFanOff:
 	//rcall nextLine
 	//sbi PORTB,5
 	clr R17
-	ldi R19, 8
+	ldi R21, 8
+	clr R30
+	clr R31
 	ldi R30, LOW(2*buttonOff)
 	ldi R31, HIGH(2*buttonOff)
 	;rcall turnOffFan
@@ -290,7 +321,7 @@ L20:
 	rcall enable			; latch nibble
 	rcall delayLoop			; wait
 	adiw zh:zl, 1			; increment z pointer
-	dec R19					; repeat until
+	dec R21					; repeat until
 	brne L20				; all charcters are out
 	ret
 
@@ -358,7 +389,7 @@ delayLoop:
 	cli
 	ldi R23, 0x01		// tmp1
 	ldi R24, 0x03		// prescaler, 64 
-	ldi R18, 230		// counter
+	ldi R20, 230		// counter
 	sts TCCR2B, R24
 	rcall delay
 	dec R29
@@ -430,22 +461,22 @@ changeSpeedClock:
 
 decrement:
 	dec R29
-	subi R20, low(-4)			; change this value to
-	subi R21, high(-4)
+	subi R19, low(-4)
+	subi R20, high(-4)
 	ret
 
 increment:
 	inc R29
-	subi R20, low(4)
-	subi R21, high(4)
+	subi R19, low(4)
+	subi R20, high(4)
 	ret
 
 ; poll2 to read in from the RPG from lab 3
 poll2:
 	rcall readRPG2
-	mov R23, R22
-	andi R23, 0x03
-	cp R16, R23 
+	mov R19, R22
+	andi R19, 0x03
+	cp R16, R19 
 	brne shiftAB
 	;rjmp poll2
 
@@ -458,15 +489,15 @@ readRPG2:
 
 ;shiftAB from lab 3
 shiftAB:
-	lsl R19
-	lsl R19
-	Or R19, R16
+	lsl R22
+	lsl R22
+	Or R22, R16
 	rjmp compare
 
 compare:
-	cpi R19, 0b11010010
+	cpi R22, 0b11010010
 	breq changeSpeedCounter
-	cpi R19, 0b11100001
+	cpi R22, 0b11100001
 	breq changeSpeedClock
 	rjmp poll2
 
@@ -489,18 +520,28 @@ compare:
 
 ;***** Subroutine Register Variables
 
-
-.DEF DREM16UL = R22				; dividend
-.DEF DREM16UH = R23				; dividend
-.DEF DRES16UL = R26				
+/*
+.DEF DREM16UL = R14
+.DEF DREM16UH = R15
+.DEF DRES16UL = R26
 .DEF DRES16UH = R27
 .DEF DD16UL = R26
 .DEF DD16UH = R27
-.DEF DV16UL = R24				; divisor
-.DEF DV16UH = R25				; divisor
-.def dcnt16u = r18
+.DEF DV16UL = R19
+.DEF DV16UH = R20
+.def dcnt16u = r21
+*/
+
+.DEF DREM16UL = R14
+.DEF DREM16UH = R15
+.DEF DRES16UL = R16
+.DEF DRES16UH = R17
+.DEF DD16UL = R16
+.DEF DD16UH = R17
+.DEF DV16UL = R18
+.DEF DV16UH = R19
+.def dcnt16u = R20
 ;***** Code
-; after calling, quotient is stored in DRES16UH:DRES16UL, remainder is stored in drem16uh:drem16uL
 
 div16u:	clr	drem16uL	;clear remainder Low byte
 	sub	drem16uH,drem16uH;clear remainder High byte and carry
