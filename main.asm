@@ -21,10 +21,9 @@
 	jmp rpgInt
 
 
-sf80: .DB "DC="	; create a static string in program memory
-defaultHz: .DB 250
-buttonOn: .DB "Fan: On " //length 8
-buttonOff: .DB "Fan: Off" //length 8
+sf80: .DB "DC=",0	; create a static string in program memory
+buttonOn: .DB "Fan: On ",0 //length 8
+buttonOff: .DB "Fan: Off",0 //length 8
 
 
 /*
@@ -81,6 +80,9 @@ start:
 	
 	rcall setCounter			; set the counter for the fan, and also starts the fan
 
+	ldi R26, low(996)
+	ldi R27, high(996)
+
 	.def tmp1 = R23
 	.def tmp2 = R24		
 	.def counter = R20
@@ -94,8 +96,8 @@ start:
 	rcall displayCString
 	;rcall rpgChange
 	sbi PORTB, 5
-	ldi R30, low(996)
-	ldi R31, high(996)
+	mov R30, R26
+	mov R31, R27
 	rcall DisplayCycleString
 	rcall setupDstring
 	rcall nextLine				; function to move the cursor over 9 spaces to get to the next line
@@ -125,14 +127,20 @@ rpgInt:
 	push R18
 	in R18, SREG
 	push R18
+	cpi R17, 0x01
+	breq rpgCall
+	rjmp skip
+rpgCall:
 	rcall poll2				
 	rcall poll2
 	rcall poll2
 	rcall poll2
+skip:
 	pop R18
 	out SREG, R18
 	pop R18
 	reti
+	;ret
 
 displayLoop:
 	sbi PORTB, 5
@@ -221,7 +229,19 @@ changeMode:
 	out PORTC, R25
 	rcall enable
 	rcall delayLoop
+	ret
 
+
+homeDis:
+	cbi PORTB, 5
+	ldi R25, 0x00
+	out PORTC, R25
+	rcall enable
+	rcall delayLoop
+	ldi R25, 0x02
+	out PORTC, R25
+	rcall enable
+	rcall delayLoop
 	ret
 
 
@@ -289,6 +309,8 @@ displayFanOn:
 	//sbi PORTB,5
 	ldi R29, 0				; 191 is 25% DC
 	out OCR0B, R29
+	//ldi R26, low(996)
+	//ldi R27, high(996)
 	ldi R17, 0x01
 	ldi R21, 8
 	ldi R30, LOW(2*buttonOn)
@@ -297,9 +319,11 @@ displayFanOn:
 displayFanOff:
 	//rcall nextLine
 	//sbi PORTB,5
+	ldi R29, 255
 	clr R17
 	ldi R21, 8
-	ldi R29, 255
+	ldi R26, 0
+	ldi R27, 0
 	out OCR0B, R29
 	ldi R30, LOW(2*buttonOff)
 	ldi R31, HIGH(2*buttonOff)
@@ -365,15 +389,15 @@ nextLine:
 	ret
 rpgChange:
 	cbi PORTB, 5
-	//rcall delayLoop
+	rcall delayLoop
 	ldi R25, 0x00
 	out PORTC, R25
 	rcall enable
-	//rcall delayLoop
-	ldi R25, 0x03
+	rcall delayLoop
+	ldi R25, 0x05
 	out PORTC, R25
 	rcall enable
-	//rcall delayLoop
+	rcall delayLoop
 	ret
 
 
@@ -381,7 +405,6 @@ rpgChange:
 ;It is going to have to be reconfigured for this lab
 // run this once to get 50.091 ms delay
 delayLoop:
-	cli
 	ldi R23, 0x01		// tmp1
 	ldi R24, 0x03		// prescaler, 64 
 	ldi R20, 230		// counter
@@ -389,7 +412,6 @@ delayLoop:
 	rcall delay
 	dec R29
 	brne delayLoop
-	sei
 	ret
 
 ; The timer from lab 3
@@ -421,7 +443,7 @@ setCounter:
 // timer 0
 PWMLoop:
 	ldi R18, 0b00110011		// value to set fast pwm mode
-	ldi R26, 0x01				// prescaler, 32
+	ldi R26, 0x09				// prescaler, 32
 	ldi R27, 200			// counter
 
 	out TCCR0A, R18			; set to fast pwm mode, inverting, clear OC0A at BOTTOM
@@ -436,29 +458,74 @@ PWMLoop:
 changeSpeedCounter:
 	cpi R29, 255
 	breq decrement
+	rjmp skipCount
+	decrement:
+	dec R29
+	rcall homeDis
+	sbi PORTB, 5
+	rcall DisplayCString
+	subi R26, low(4)
+	subi R27, high(4)
+	mov R30, R26
+	mov R31, R27
+	rcall setupDstring
+	rcall DisplayCycleString
+
+	rjmp pastInc
+	skipCount:
 	inc R29
+	pastInc:
 	out OCR0B, R29
 	rjmp poll2
 
 changeSpeedClock:
 	cpi R29, 0
 	breq increment
+	rjmp skipClock
+	increment:
+	inc R29
+	rcall homeDis
+	sbi PORTB, 5
+	rcall DisplayCString
+	subi R26, low(-4)
+	subi R27, high(-4)
+	mov R30, R26
+	mov R31, R27
+	rcall setupDstring
+	rcall DisplayCycleString
+	rjmp pastDec
+	skipClock:
 	dec R29
+	pastDec:
 	out OCR0B, R29
 	rjmp poll2
-
+/*
 decrement:
 	dec R29
-	subi R19, low(-4)
-	subi R20, high(-4)
+	subi R26, low(-4)
+	subi R27, high(-4)
+	rcall homeDis
+	sbi PORTB, 5
+	rcall DisplayCString
+	mov R30, R26
+	mov R31, R27
+	rcall DisplayCycleString
+	rcall setupDstring
 	ret
 
 increment:
 	inc R29
-	subi R19, low(4)
-	subi R20, high(4)
+	subi R26, low(4)
+	subi R27, high(4)
+	rcall homeDis
+	sbi PORTB, 5
+	rcall DisplayCString
+	mov R30, R26
+	mov R31, R27
+	rcall DisplayCycleString
+	rcall setupDstring
 	ret
-
+*/
 ; poll2 to read in from the RPG from lab 3
 poll2:
 	rcall readRPG2
