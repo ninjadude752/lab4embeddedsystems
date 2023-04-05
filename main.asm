@@ -287,28 +287,23 @@ displayCString:
 displayFanOn:
 	//rcall nextLine
 	//sbi PORTB,5
-	ldi R17, 0x01
-	ldi R21, 8
-	clr R30
-	clr R31
-	ldi R30, LOW(2*buttonOn)
-	ldi R31, HIGH(2*buttonOn)
-	;rcall turnOnFan
 	ldi R29, 0				; 191 is 25% DC
 	out OCR0B, R29
+	ldi R17, 0x01
+	ldi R21, 8
+	ldi R30, LOW(2*buttonOn)
+	ldi R31, HIGH(2*buttonOn)
 	rjmp L20
 displayFanOff:
 	//rcall nextLine
 	//sbi PORTB,5
 	clr R17
 	ldi R21, 8
-	clr R30
-	clr R31
-	ldi R30, LOW(2*buttonOff)
-	ldi R31, HIGH(2*buttonOff)
-	;rcall turnOffFan
 	ldi R29, 255
 	out OCR0B, R29
+	ldi R30, LOW(2*buttonOff)
+	ldi R31, HIGH(2*buttonOff)
+
 	rjmp L20
 L20:
 	lpm
@@ -438,13 +433,6 @@ PWMLoop:
 	brne PWMLoop
 	ret
 
-turnOffFan:
-	ldi R29, 255
-	out OCR0B, R29
-	ret
-
-
-
 changeSpeedCounter:
 	cpi R29, 255
 	breq decrement
@@ -543,10 +531,12 @@ compare:
 .def dcnt16u = R20
 ;***** Code
 
-div16u:	clr	drem16uL	;clear remainder Low byte
+div16u:	
+	clr	drem16uL	;clear remainder Low byte
 	sub	drem16uH,drem16uH;clear remainder High byte and carry
 	ldi	dcnt16u,17	;init loop counter
-d16u_1:	rol	dd16uL		;shift left dividend
+d16u_1:	
+	rol	dd16uL		;shift left dividend
 	rol	dd16uH
 	dec	dcnt16u		;decrement counter
 	brne	d16u_2		;if done
