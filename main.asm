@@ -5,11 +5,8 @@
 ; Author : smblackwll
 ;
 
-
 .dseg
 	dtxt: .BYTE 5 ; Allocation
-
-
 .cseg
 .org 0x0000
 	rjmp start
@@ -22,21 +19,9 @@
 
 
 sf80: .DB "DC="	; create a static string in program memory
-defaultHz: .DB 250
 buttonOn: .DB "Fan: On " //length 8
 buttonOff: .DB "Fan: Off" //length 8
 
-
-/*
-.DEF DREM16UL = R23
-.DEF DREM16UH = R24
-.DEF DRES16UL = R26
-.DEF DRES16UH = R27
-.DEF DD16UL = R26
-.DEF DD16UH = R27
-.DEF DV16UL = R19
-.DEF DV16UH = R20
-*/
 
 start:
 	cli						; disable interrupts
@@ -52,12 +37,10 @@ start:
 	ldi R16, 0x02			; INT0 on falling edge
 	sts EICRA, R16
 	// RPG
-	ldi R17, 0x03
-	sts PCMSK0, R17
-	ldi R17, 0x01
-	sts PCICR, R17
-
-
+	ldi R16, 0x03
+	sts PCMSK0, R16
+	ldi R16, 0x01
+	sts PCICR, R16
 
 	// set A0-A3 on uC as output from LCD D4-D7
 	sbi DDRC, 0		// D4
@@ -71,13 +54,13 @@ start:
 	// set fan as output
 	sbi DDRD, 5
 	
-	// set RPG as input
+	// set RPG as intput
 	cbi DDRB, 1		; RPG A signal	(pin8)
 	cbi DDRB, 0		; RPG B signal (pin8)
 
 
-	sbi DDRB, 4		; set pin12 on uC as output from LCD pin 6 E (enable signal)
-	sbi DDRB, 5		; set pin13 on uC as output from LCD pin 4 RS (0 = instruction input, 1 = data input)
+	sbi DDRB, 4		; set pin12 on uC as input from LCD pin 6 E (enable signal)
+	sbi DDRB, 5		; set pin13 on uC as input from LCD pin 4 RS (0 = instruction input, 1 = data input)
 	
 	rcall setCounter			; set the counter for the fan, and also starts the fan
 
@@ -92,17 +75,13 @@ start:
 	rcall changeMode
 	sbi PORTB, 5				; change to character mode not instruction
 	rcall displayCString
-	;rcall rpgChange
-	sbi PORTB, 5
 	ldi R30, low(996)
 	ldi R31, high(996)
 	rcall DisplayCycleString
 	rcall setupDstring
-	rcall nextLine				; function to move the cursor over 9 spaces to get to the next line
+	rcall nextLine
 	sbi PORTB, 5
 	rcall displayFanOff
-    //inc r16
-
 	sei							; enable interrupts 	
 
 main:
@@ -134,13 +113,6 @@ rpgInt:
 	pop R18
 	reti
 
-displayLoop:
-	sbi PORTB, 5
-	rcall displayCString
-	//need a function to move the cursor over 9 spaces to get to the next line
-	rcall nextLine
-	sbi PORTB, 5
-	rcall displayFanOn
 
 changeMode:
 	cbi PORTB, 4
@@ -221,61 +193,6 @@ changeMode:
 	out PORTC, R25
 	rcall enable
 	rcall delayLoop
-
-	ret
-
-
-
-DisplayCycleString:
-//.dseg
-	//dtxt: .BYTE 5 ; Allocation
-.cseg
-	mov dd16uL,R30 ; LSB of number to display DEFINE
-	mov dd16uH,R31 ; MSB of number to display DEFINE
-	ldi dv16uL,low(10) //DEFINE
-	ldi dv16uH,high(10) //DEFINE
-	; Store terminating for the string.
-	ldi R20,0x00 ; Terminating NULL
-	sts dtxt+4,R20 ; Store in RAM
-	; Divide the number by 10 and format remainder.
-	rcall div16u ; Result: r17:r16, rem: r15:r14  DEFINE
-	ldi R20,0x30
-	add r14,R20 ; Convert to ASCII
-	sts dtxt+3,r14 ; Store in RAM
-	; Generate decimal point.
-	ldi R20,0x2e ; ASCII code for .
-	sts dtxt+2,R20 ; Store in RAM
-	rcall div16u ; Result: r17:r16, rem: r15:r14  DEFINE
-	ldi R20,0x30
-	add r14,R20 ; Convert to ASCII
-	sts dtxt+1,r14 ; Store in RAM
-	rcall div16u ; Result: r17:r16, rem: r15:r14  DEFINE
-	ldi R20,0x30
-	add r14,R20 ; Convert to ASCII
-	sts dtxt+0,r14 ; Store in RAM
-	ret
-
-setupDstring:
-	ldi R21, 5
-	ldi R30, LOW(dtxt)
-	ldi R31, HIGH(dtxt)
-	rcall displayDstring
-	;rcall L20
-	ret
-
-
-displayDstring:
-	ld r0,Z+
-	tst r0 ; Reached end of message ?
-	breq done_dsd ; Yes => quit
-	swap r0 ; Upper nibble in place
-	out PORTC,r0 ; Send upper nibble out
-	rcall enable ; Latch nibble
-	swap r0 ; Lower nibble in place
-	out PORTC,r0 ; Send lower nibble out
-	rcall enable ; Latch nibble
-	rjmp displayDString
-done_dsd:
 	ret
 	
 
@@ -284,26 +201,23 @@ displayCString:
 	ldi R30, LOW(2*sf80)	; load Z register low
 	ldi R31, HIGH(2*sf80)	; load Z register high
 	rjmp L20
+
+
 displayFanOn:
-	//rcall nextLine
-	//sbi PORTB,5
-	ldi R29, 0				; 191 is 25% DC
-	out OCR0B, R29
 	ldi R17, 0x01
 	ldi R21, 8
 	ldi R30, LOW(2*buttonOn)
 	ldi R31, HIGH(2*buttonOn)
+	ldi R27, 0
+	out OCR0B, R27
 	rjmp L20
 displayFanOff:
-	//rcall nextLine
-	//sbi PORTB,5
 	clr R17
 	ldi R21, 8
-	ldi R29, 255
-	out OCR0B, R29
 	ldi R30, LOW(2*buttonOff)
 	ldi R31, HIGH(2*buttonOff)
-
+	ldi R27, 255
+	out OCR0B, R27
 	rjmp L20
 L20:
 	lpm
@@ -353,27 +267,15 @@ togglePower:
 
 nextLine:
 	cbi PORTB, 5
-	//rcall delayLoop
+	;rcall delayLoop
 	ldi R25, 0x0C
 	out PORTC, R25
 	rcall enable
-	//rcall delayLoop
+	;rcall delayLoop
 	ldi R25, 0x00
 	out PORTC, R25
 	rcall enable
-	//rcall delayLoop
-	ret
-rpgChange:
-	cbi PORTB, 5
-	//rcall delayLoop
-	ldi R25, 0x00
-	out PORTC, R25
-	rcall enable
-	//rcall delayLoop
-	ldi R25, 0x03
-	out PORTC, R25
-	rcall enable
-	//rcall delayLoop
+	;rcall delayLoop
 	ret
 
 
@@ -421,7 +323,7 @@ setCounter:
 // timer 0
 PWMLoop:
 	ldi R18, 0b00110011		// value to set fast pwm mode
-	ldi R26, 0x01				// prescaler, 32
+	ldi R26, 0x03				// prescaler, 32
 	ldi R27, 200			// counter
 
 	out TCCR0A, R18			; set to fast pwm mode, inverting, clear OC0A at BOTTOM
@@ -433,30 +335,27 @@ PWMLoop:
 	brne PWMLoop
 	ret
 
+
 changeSpeedCounter:
-	cpi R29, 255
+	cpi R27, 255
 	breq decrement
-	inc R29
-	out OCR0B, R29
+	inc R27
+	out OCR0B, R27
 	rjmp poll2
 
 changeSpeedClock:
-	cpi R29, 0
+	cpi R27, 1
 	breq increment
-	dec R29
-	out OCR0B, R29
+	dec R27
+	out OCR0B, R27
 	rjmp poll2
 
 decrement:
-	dec R29
-	subi R19, low(-4)
-	subi R20, high(-4)
+	dec R27
 	ret
 
 increment:
-	inc R29
-	subi R19, low(4)
-	subi R20, high(4)
+	inc R27
 	ret
 
 ; poll2 to read in from the RPG from lab 3
@@ -466,8 +365,6 @@ poll2:
 	andi R19, 0x03
 	cp R16, R19 
 	brne shiftAB
-	;rjmp poll2
-
 
 ;readRPG2 from lab 3 to read in the shifts
 readRPG2:
@@ -489,36 +386,55 @@ compare:
 	breq changeSpeedClock
 	rjmp poll2
 
-;***************************************************************************
-;*
-;* "div16u" - 16/16 Bit Unsigned Division
-;*
-;* This subroutine divides the two 16-bit numbers 
-;* "dd8uH:dd8uL" (dividend) and "dv16uH:dv16uL" (divisor). 
-;* The result is placed in "dres16uH:dres16uL" and the remainder in
-;* "drem16uH:drem16uL".
-;*  
-;* Number of words	:19
-;* Number of cycles	:235/251 (Min/Max)
-;* Low registers used	:2 (drem16uL,drem16uH)
-;* High registers used  :5 (dres16uL/dd16uL,dres16uH/dd16uH,dv16uL,dv16uH,
-;*			    dcnt16u)
-;*
-;***************************************************************************
+DisplayCycleString:
+.cseg
+	mov dd16uL,R30 ; LSB of number to display DEFINE
+	mov dd16uH,R31 ; MSB of number to display DEFINE
+	ldi dv16uL,low(10) //DEFINE
+	ldi dv16uH,high(10) //DEFINE
+	; Store terminating for the string.
+	ldi R20,0x00 ; Terminating NULL
+	sts dtxt+4,R20 ; Store in RAM
+	; Divide the number by 10 and format remainder.
+	rcall div16u ; Result: r17:r16, rem: r15:r14  DEFINE
+	ldi R20,0x30
+	add r14,R20 ; Convert to ASCII
+	sts dtxt+3,r14 ; Store in RAM
+	; Generate decimal point.
+	ldi R20,0x2e ; ASCII code for .
+	sts dtxt+2,R20 ; Store in RAM
+	rcall div16u ; Result: r17:r16, rem: r15:r14  DEFINE
+	ldi R20,0x30
+	add r14,R20 ; Convert to ASCII
+	sts dtxt+1,r14 ; Store in RAM
+	rcall div16u ; Result: r17:r16, rem: r15:r14  DEFINE
+	ldi R20,0x30
+	add r14,R20 ; Convert to ASCII
+	sts dtxt+0,r14 ; Store in RAM
+	ret
 
-;***** Subroutine Register Variables
+setupDstring:
+	ldi R21, 5
+	ldi R30, LOW(dtxt)
+	ldi R31, HIGH(dtxt)
+	rcall displayDstring
+	;rcall L20
+	ret
 
-/*
-.DEF DREM16UL = R14
-.DEF DREM16UH = R15
-.DEF DRES16UL = R26
-.DEF DRES16UH = R27
-.DEF DD16UL = R26
-.DEF DD16UH = R27
-.DEF DV16UL = R19
-.DEF DV16UH = R20
-.def dcnt16u = r21
-*/
+
+displayDstring:
+	ld r0,Z+
+	tst r0 ; Reached end of message ?
+	breq done_dsd ; Yes => quit
+	swap r0 ; Upper nibble in place
+	out PORTC,r0 ; Send upper nibble out
+	rcall enable ; Latch nibble
+	swap r0 ; Lower nibble in place
+	out PORTC,r0 ; Send lower nibble out
+	rcall enable ; Latch nibble
+	rjmp displayDString
+done_dsd:
+	ret
 
 .DEF DREM16UL = R14
 .DEF DREM16UH = R15
@@ -529,7 +445,6 @@ compare:
 .DEF DV16UL = R18
 .DEF DV16UH = R19
 .def dcnt16u = R20
-;***** Code
 
 div16u:	
 	clr	drem16uL	;clear remainder Low byte
